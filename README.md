@@ -39,7 +39,12 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j
 ctest --test-dir build --output-on-failure     # unit tests: analysis, beat clock, ABC parser
 ./build/soundscape-native                        # or: --api http://host:3021  --station <id>  --fullscreen
+./scripts/install-launcher.sh                    # optional: `soundscape` command + GNOME launcher entry
 ```
+
+`scripts/install-launcher.sh` symlinks `soundscape` into `~/.local/bin` (it runs this repo's build, so a rebuild is
+picked up; `soundscape build` rebuilds) and installs a desktop entry with an icon, so Soundscape shows up in the
+application grid. Arguments pass through: `soundscape --fullscreen`, `soundscape --station <id>`.
 
 Options: `--api URL` (or `SOUNDSCAPE_API=…`), `--station ID`, `--autoplay`, `--fullscreen`, `--no-maximize`, `--render-scale X`
 (scene supersampling, default 2), `--ui-scale X` (default auto from display scale and size), `--gpu N` (or `SOUNDSCAPE_GPU`),

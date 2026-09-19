@@ -68,7 +68,8 @@ target_compile_options(soundscape-native PRIVATE -Wall -Wextra -Wno-unused-param
 target_compile_definitions(soundscape-native PRIVATE GLFW_INCLUDE_NONE GLFW_INCLUDE_VULKAN)
 
 install(TARGETS soundscape-native RUNTIME DESTINATION bin)
-install(FILES packaging/soundscape-native.desktop DESTINATION share/applications)
+install(FILES packaging/soundscape.desktop DESTINATION share/applications)
+install(FILES packaging/soundscape.png DESTINATION share/icons/hicolor/256x256/apps)
 
 # ---- tests (pure modules: analysis, abc, player timing) --------------------------------------------------------------
 enable_testing()

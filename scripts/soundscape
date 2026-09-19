@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# `soundscape` — launch the native Soundscape client from anywhere. Runs the build in this repo (so a rebuild is picked
+# up automatically); builds it first if missing. Extra arguments go to the app (see `soundscape --help`).
+#   soundscape                 start (maximized, native Wayland)
+#   soundscape --fullscreen    start fullscreen
+#   soundscape build           rebuild (cmake configure + build)
+set -euo pipefail
+REPO="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+BIN="$REPO/build/soundscape-native"
+build() { cmake -S "$REPO" -B "$REPO/build" -DCMAKE_BUILD_TYPE=Release >/dev/null && cmake --build "$REPO/build" -j"$(nproc)" | grep -E "error|Built target soundscape-native" || true; }
+if [ "${1:-}" = "build" ]; then build; exit 0; fi
+[ -x "$BIN" ] || { echo "soundscape: building first…" >&2; build; }
+exec "$BIN" "$@"
