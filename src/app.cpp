@@ -159,12 +159,19 @@ void App::setMode(const std::string& m) {
 void App::toggleFullscreen() {
   fullscreen = !fullscreen;
   if (fullscreen) {
-    glfwGetWindowPos(window, &savedWinX, &savedWinY); glfwGetWindowSize(window, &savedWinW, &savedWinH);
+    savedMaximized = glfwGetWindowAttrib(window, GLFW_MAXIMIZED) == GLFW_TRUE;
+    if (savedMaximized) glfwRestoreWindow(window);                       // remember the un-maximized geometry
+#ifdef GLFW_PLATFORM_WAYLAND
+    if (glfwGetPlatform() != GLFW_PLATFORM_WAYLAND)                     // Wayland has no window positions
+#endif
+    glfwGetWindowPos(window, &savedWinX, &savedWinY);
+    glfwGetWindowSize(window, &savedWinW, &savedWinH);
     GLFWmonitor* mon = glfwGetPrimaryMonitor(); const GLFWvidmode* vm = glfwGetVideoMode(mon);
     glfwSetWindowMonitor(window, mon, 0, 0, vm->width, vm->height, vm->refreshRate);
     panelVisible = false;
   } else {
-    glfwSetWindowMonitor(window, nullptr, savedWinX, savedWinY, savedWinW, savedWinH, 0);
+    glfwSetWindowMonitor(window, nullptr, savedWinX, savedWinY, std::max(1920, savedWinW), std::max(1080, savedWinH), 0);
+    if (savedMaximized) glfwMaximizeWindow(window);
     panelVisible = true;
   }
 }
@@ -261,6 +268,7 @@ int App::run() {
   if (opt.maximized && !opt.fullscreen) glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
   window = glfwCreateWindow(savedWinW, savedWinH, "Soundscape", nullptr, nullptr);
   if (!window) { std::fprintf(stderr, "window creation failed\n"); return 1; }
+  glfwSetWindowSizeLimits(window, 1920, 1080, GLFW_DONT_CARE, GLFW_DONT_CARE);   // the layout is designed for 1080p and up
   // UI scale: the compositor's content scale × a size factor, so a 4K desktop at 100 % still gets readable panes.
   float sx = 1, sy = 1; glfwGetWindowContentScale(window, &sx, &sy);
   int fbw = 0, fbh = 0; glfwGetFramebufferSize(window, &fbw, &fbh);
@@ -312,6 +320,7 @@ int App::run() {
     player->tick(now);
     pollStatus(now);
     audio.setVolume(volume);
+    if (opt.fullscreenToggleAt > 0 && now - t0 >= opt.fullscreenToggleAt) { opt.fullscreenToggleAt += (fullscreen ? 1e9 : 3); toggleFullscreen(); }
     mark(0, tm);
     computeFrame(dt);
     mark(1, tm);

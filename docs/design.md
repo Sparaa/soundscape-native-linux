@@ -32,9 +32,11 @@ already-downloaded bytes, so the lock is never held across I/O.
 - Camera: the web uses a 60° perspective camera at z = 3.2 looking at z = 0. Everything sits on z = 0, so the
   visible half-height is tan(30°)·3.2 = 1.8475 world units; the vertex shaders scale by `1/(1.8475·aspect), 1/1.8475`.
 - Color: hex colors are converted sRGB → linear on the CPU (three.js does the same with ColorManagement on), math is
-  linear, the offscreen target is RGBA16F, the swapchain is `B8G8R8A8_SRGB`. The post pass converts to sRGB, applies
-  the CSS-equivalent overlays (scanlines multiply 0.58 on two of three rows, a 22 %-tall red band rolling every 7 s
-  with screen blending, an elliptical vignette, an inset edge shadow) and converts back.
+  linear, the offscreen target is RGBA16F. The swapchain is **UNORM**: the post pass converts to sRGB, applies the
+  CSS-equivalent overlays (scanlines multiply 0.58 on two of three rows, a 22 %-tall red band rolling every 7 s with
+  screen blending, an elliptical vignette, an inset edge shadow) and writes the display values as they are. Dear ImGui
+  then draws its sRGB colors untouched, like a browser. (The first cut used an sRGB swapchain: the hardware re-encoded
+  ImGui's already-sRGB output and the panes came out grey and the text heavy.)
 - Blending: `MeshBasicMaterial` opaque draws use alpha blending with α = 1; the bloom bars and wheel glow use
   additive (`SrcAlpha, One`) like three's `AdditiveBlending`.
 - Draw order follows the web `renderOrder`: grid → bloom → segments → ticks → disc → bezel/lines → wheel glow → wheel.
@@ -54,6 +56,14 @@ Xwayland surface is presentable only from the GPU Xwayland is bound to (here the
 monitor), so every frame crossed GPUs. GLFW 3.4 built in-tree with the Wayland backend, plus a
 `GLFW_PLATFORM_WAYLAND` init hint when `WAYLAND_DISPLAY` is set, presents from the display GPU: 60 fps at vsync.
 `SOUNDSCAPE_X11=1` forces the old path; `--gpu N` picks a device by index.
+
+## Window handling
+
+- Wayland never returns `VK_ERROR_OUT_OF_DATE_KHR` on resize — the compositor just scales the old buffer, which is
+  what scrambled the layout after leaving fullscreen. `beginFrame` compares the framebuffer size with the swapchain
+  extent every frame and rebuilds on a mismatch.
+- Minimum window 1920×1080 (`glfwSetWindowSizeLimits`); starts maximized; fullscreen remembers whether the window was
+  maximized and restores that. `--fullscreen-toggle-at S` toggles at S and back at S+3 for a headless regression run.
 
 ## Verification helpers
 

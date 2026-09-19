@@ -18,7 +18,7 @@
 namespace ss {
 
 struct Options { std::string apiBase = "http://127.0.0.1:3021"; bool validation = false; bool vsync = true; bool fullscreen = false; std::string station;
-  bool autoplay = false; std::string screenshot; double screenshotAfter = 8; double exitAfter = 0; int gpu = -1; float renderScale = 2.f; bool maximized = true; float uiScale = 0.f; /* 0 = auto */ };
+  bool autoplay = false; std::string screenshot; double screenshotAfter = 8; double exitAfter = 0; int gpu = -1; float renderScale = 2.f; bool maximized = true; float uiScale = 0.f; /* 0 = auto */ double fullscreenToggleAt = 0; /* test: toggle at S and S+3 */ };
 
 struct App {
   explicit App(Options o);
@@ -34,7 +34,7 @@ struct App {
   std::string err, notice; Health health; bool healthKnown = false; bool busyStation = false;
   char newStationName[128] = ""; char seedUrl[512] = ""; char apiEdit[256] = ""; float covers = 0.5f; bool coversDragging = false; int tab = 1;
   bool panelVisible = true, fullscreen = false, crt = true; float renderScale = 2.f, glow = 0.12f, volume = 1.f, fps = 0; bool showHud = true;
-  int savedWinX = 100, savedWinY = 100, savedWinW = 1600, savedWinH = 1000;
+  int savedWinX = 100, savedWinY = 100, savedWinW = 1920, savedWinH = 1080; bool savedMaximized = false;
 
   // worker-visible copies (the player's next-song callback runs off the main thread)
   std::mutex wmx; std::string wStationId; std::vector<Song> wPlaylist; int wPlIndex = -1; std::string wMode = "radio";

@@ -84,8 +84,13 @@ void VkContext::init(GLFWwindow* w, bool validation) {
   vkCheck(vkCreateDescriptorPool(device, &dpi, nullptr, &descPool), "vkCreateDescriptorPool");
   // ---- swapchain render pass (format decided by createSwapchain; sRGB preferred, so pick the format first)
   uint32_t fc = 0; vkGetPhysicalDeviceSurfaceFormatsKHR(phys, surface, &fc, nullptr); std::vector<VkSurfaceFormatKHR> fmts(fc); vkGetPhysicalDeviceSurfaceFormatsKHR(phys, surface, &fc, fmts.data());
-  scFormat = fmts.empty() ? VK_FORMAT_B8G8R8A8_SRGB : fmts[0].format;
-  for (auto& f : fmts) if ((f.format == VK_FORMAT_B8G8R8A8_SRGB || f.format == VK_FORMAT_R8G8B8A8_SRGB) && f.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) { scFormat = f.format; break; }
+  // UNORM preferred: the post pass writes display (sRGB-encoded) values itself and Dear ImGui's sRGB colors then land
+  // untouched, like in a browser. An sRGB format would re-encode ImGui's output and wash the panes out to grey.
+  scFormat = fmts.empty() ? VK_FORMAT_B8G8R8A8_UNORM : fmts[0].format;
+  bool found = false;
+  for (auto& f : fmts) if ((f.format == VK_FORMAT_B8G8R8A8_UNORM || f.format == VK_FORMAT_R8G8B8A8_UNORM) && f.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) { scFormat = f.format; found = true; break; }
+  if (!found) for (auto& f : fmts) if ((f.format == VK_FORMAT_B8G8R8A8_SRGB || f.format == VK_FORMAT_R8G8B8A8_SRGB) && f.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) { scFormat = f.format; break; }
+  srgbSwapchain = scFormat == VK_FORMAT_B8G8R8A8_SRGB || scFormat == VK_FORMAT_R8G8B8A8_SRGB;
   VkAttachmentDescription att{}; att.format = scFormat; att.samples = VK_SAMPLE_COUNT_1_BIT; att.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR; att.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
   att.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE; att.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE; att.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED; att.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
   VkAttachmentReference ref{ 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL };
@@ -138,10 +143,13 @@ void VkContext::recreateSwapchain() {
   destroySwapchain();
   createSwapchain();
   wantRecreate_ = false;
+  std::fprintf(stderr, "[vulkan] swapchain %ux%u\n", extent.width, extent.height);
   if (onSwapchainRecreated) onSwapchainRecreated();
 }
 
 bool VkContext::beginFrame(uint32_t& imageIndex, VkCommandBuffer& cmd) {
+  int fw = 0, fh = 0; glfwGetFramebufferSize(window, &fw, &fh);
+  if (fw > 0 && fh > 0 && (uint32_t(fw) != extent.width || uint32_t(fh) != extent.height)) wantRecreate_ = true;
   if (wantRecreate_) { recreateSwapchain(); return false; }
   vkWaitForFences(device, 1, &inFlight[frame], VK_TRUE, UINT64_MAX);
   VkResult r = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, imageAvailable[frame], VK_NULL_HANDLE, &imageIndex);

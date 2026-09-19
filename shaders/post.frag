@@ -1,10 +1,10 @@
 #version 450
 // CRT post pass: soft phosphor glow, scanlines, a rolling band and an elliptical vignette — the web app's CSS overlays
-// (.crt-scanlines / .crt-vignette) applied in display (sRGB) space, output back to linear for the sRGB swapchain.
+// (.crt-scanlines / .crt-vignette) applied in display (sRGB) space; written as-is to a UNORM swapchain (or re-linearised for sRGB).
 layout(set = 0, binding = 0) uniform sampler2D uScene;
 layout(location = 0) in vec2 vUV;
 layout(location = 0) out vec4 outColor;
-layout(push_constant) uniform PC { vec2 res; float time; float bass; float hit; float crt; float glow; float pad; } pc;
+layout(push_constant) uniform PC { vec2 res; float time; float bass; float hit; float crt; float glow; float srgbTarget; } pc;
 
 vec3 toSRGB(vec3 c) { return mix(c * 12.92, 1.055 * pow(max(c, 0.0), vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
 vec3 toLinear(vec3 c) { return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c)); }
@@ -45,5 +45,6 @@ void main() {
     float edge = clamp(min(e.x, e.y) / 120.0, 0.0, 1.0);
     c *= mix(0.1, 1.0, smoothstep(0.0, 1.0, edge));
   }
-  outColor = vec4(toLinear(clamp(c, 0.0, 1.0)), 1.0);
+  c = clamp(c, 0.0, 1.0);
+  outColor = vec4(pc.srgbTarget > 0.5 ? toLinear(c) : c, 1.0);   // UNORM target: write display values directly
 }

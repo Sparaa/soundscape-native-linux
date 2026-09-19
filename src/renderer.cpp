@@ -302,7 +302,7 @@ void Renderer::render(VkCommandBuffer cmd, uint32_t imageIndex, const VisualFram
   vkCmdSetViewport(cmd, 0, 1, &vp2); vkCmdSetScissor(cmd, 0, 1, &sc2);
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipePost_);
   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, postLayout_, 0, 1, &ds_, 0, nullptr);
-  PushPost pp{}; pp.res[0] = float(w); pp.res[1] = float(h); pp.time = float(p.time); pp.bass = bass; pp.hit = hit; pp.crt = p.crt ? 1.f : 0.f; pp.glow = p.glow;
+  PushPost pp{}; pp.res[0] = float(w); pp.res[1] = float(h); pp.time = float(p.time); pp.bass = bass; pp.hit = hit; pp.crt = p.crt ? 1.f : 0.f; pp.glow = p.glow; pp.srgbTarget = ctx_->srgbSwapchain ? 1.f : 0.f;
   vkCmdPushConstants(cmd, postLayout_, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushPost), &pp);
   vkCmdDraw(cmd, 3, 1, 0, 0);
 }

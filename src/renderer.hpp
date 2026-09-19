@@ -27,7 +27,7 @@ private:
   struct SVert { float pos[2]; float color[4]; };
   struct Draw { uint32_t first, count; bool additive; int kind; };   // kind: 0 grid 1 disc 2 bezel 3 line 4 wheelGlow 5 wheel
   struct Push { float proj[2]; float rot; float scale; float colorMul[4]; };
-  struct PushPost { float res[2]; float time, bass, hit, crt, glow, pad; };
+  struct PushPost { float res[2]; float time, bass, hit, crt, glow, srgbTarget; };
 
   VkContext* ctx_ = nullptr;
   VkRenderPass offPass_ = VK_NULL_HANDLE; VkImage offImg_ = VK_NULL_HANDLE; VkDeviceMemory offMem_ = VK_NULL_HANDLE; VkImageView offView_ = VK_NULL_HANDLE;
