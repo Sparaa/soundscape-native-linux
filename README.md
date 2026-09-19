@@ -49,7 +49,7 @@ application grid. Arguments pass through: `soundscape --fullscreen`, `soundscape
 Options: `--api URL` (or `SOUNDSCAPE_API=…`), `--station ID`, `--autoplay`, `--fullscreen`, `--no-maximize`, `--render-scale X`
 (scene supersampling, default 2), `--ui-scale X` (default auto from display scale and size), `--gpu N` (or `SOUNDSCAPE_GPU`),
 `--no-vsync`, `--validation`, `--verbose` (swapchain resize log + fps summary at exit; quiet by default), `--screenshot out.ppm [--screenshot-after S]`, `--exit-after S`. `SOUNDSCAPE_X11=1` forces
-Xwayland; `SOUNDSCAPE_PROFILE=1` prints per-phase frame timings at exit.
+Xwayland; `SOUNDSCAPE_PROFILE=1` prints per-phase frame timings and pulse/band-level stats at exit (`SOUNDSCAPE_PUNCH_LEVEL=lo,hi` / `SOUNDSCAPE_PUNCH_BINS=lo,hi` override the center-pulse gate and band for experiments; `build/punch-calibrate song.f32 …` sweeps them offline).
 
 Keys: **Space** play/stop · **N** skip · **S** save · **F**/**F11** fullscreen (panel hidden) · **Tab** panel ·
 **H** HUD · **C** CRT post pass · **Ctrl+Q** quit.

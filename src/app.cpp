@@ -315,6 +315,9 @@ int App::run() {
   const bool profile = std::getenv("SOUNDSCAPE_PROFILE") != nullptr; double prof[6] = {}; const char* profName[6] = { "events+tick", "analyse", "acquire", "imgui", "record", "submit+present" };
   auto mark = [&](int k, double& tm) { if (!profile) return; double n = glfwGetTime(); prof[k] += n - tm; tm = n; };
   long punchHigh = 0, punchPeaks = 0, hitPeaks = 0, playFrames = 0; float lastPunch = 0, lastHit = 0;   // profile: does the pulse engage?
+  std::vector<float> lvAll, lvPeak;   // profile: band level every frame / at punch peaks (gate calibration)
+  if (const char* e = std::getenv("SOUNDSCAPE_PUNCH_LEVEL")) { float a = 0, b = 0; if (std::sscanf(e, "%f,%f", &a, &b) == 2) { punchDet.levelLo = a; punchDet.levelHi = b; } }
+  if (const char* e = std::getenv("SOUNDSCAPE_PUNCH_BINS")) { int a = 0, b = 0; if (std::sscanf(e, "%d,%d", &a, &b) == 2) { punchDet.lo = a; punchDet.hi = b; } }
   while (!glfwWindowShouldClose(window)) {
     double tm = glfwGetTime();
     glfwPollEvents();
@@ -326,7 +329,7 @@ int App::run() {
     if (opt.fullscreenToggleAt > 0 && now - t0 >= opt.fullscreenToggleAt) { opt.fullscreenToggleAt += (fullscreen ? 1e9 : 3); toggleFullscreen(); }
     mark(0, tm);
     computeFrame(dt);
-    if (profile && song) { playFrames++; if (frame.beat.punch > 0.5f) punchHigh++; if (frame.beat.punch > 0.6f && lastPunch <= 0.6f) punchPeaks++; if (frame.beat.hit > 0.9f && lastHit <= 0.9f) hitPeaks++; lastPunch = frame.beat.punch; lastHit = frame.beat.hit; }
+    if (profile && song) { playFrames++; if (frame.beat.punch > 0.5f) punchHigh++; if (frame.beat.punch > 0.6f && lastPunch <= 0.6f) { punchPeaks++; lvPeak.push_back(punchDet.level); } lvAll.push_back(punchDet.level); if (frame.beat.hit > 0.9f && lastHit <= 0.9f) hitPeaks++; lastPunch = frame.beat.punch; lastHit = frame.beat.hit; }
     mark(1, tm);
     uint32_t imageIndex = 0; VkCommandBuffer cmd = VK_NULL_HANDLE;
     if (!vk.beginFrame(imageIndex, cmd)) continue;
@@ -354,6 +357,11 @@ int App::run() {
   if (profile && totalFrames) for (int k = 0; k < 6; k++) std::fprintf(stderr, "[profile] %-15s %6.2f ms/frame\n", profName[k], prof[k] * 1000 / totalFrames);
   if (profile && playFrames) std::fprintf(stderr, "[profile] pulse: %.1f s of playback · punch peaks %.2f/s · punch > 0.5 for %.0f%% of frames · bass-hit peaks %.2f/s\n",
                                           playFrames / 60.0, punchPeaks / (playFrames / 60.0), 100.0 * punchHigh / playFrames, hitPeaks / (playFrames / 60.0));
+  if (profile && playFrames) {
+    auto pct = [](std::vector<float> v, double q) { if (v.empty()) return 0.f; std::sort(v.begin(), v.end()); return v[size_t(q * (v.size() - 1))]; };
+    std::fprintf(stderr, "[profile] band level (bins %d..%d) all frames p10/p50/p90 %.2f/%.2f/%.2f · at punch peaks p10/p50/p90 %.2f/%.2f/%.2f · gate %.2f..%.2f\n",
+                 punchDet.lo, punchDet.hi, pct(lvAll, .1), pct(lvAll, .5), pct(lvAll, .9), pct(lvPeak, .1), pct(lvPeak, .5), pct(lvPeak, .9), punchDet.levelLo, punchDet.levelHi);
+  }
   if (opt.verbose || profile) std::fprintf(stderr, "[soundscape] %ld frames in %.1f s (%.0f fps avg, %s)\n", totalFrames, glfwGetTime() - t0, totalFrames / std::max(1e-3, glfwGetTime() - t0), opt.vsync ? "fifo" : "mailbox/immediate");
   if (station && player && player->currentSong()) { try { api.radioStop(station->id); } catch (...) {} }
   player.reset(); audio.shutdown();

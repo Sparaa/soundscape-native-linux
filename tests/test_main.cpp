@@ -88,15 +88,21 @@ static void test_clock() {
 }
 
 static void test_punch() {
-  PunchDetector d; std::vector<float> quiet(64, 0.1f);
-  for (int i = 0; i < 30; i++) d.update(quiet);
-  std::vector<float> kick = quiet; for (int i = 0; i < 16; i++) kick[i] += 0.35f;   // 30–125 Hz burst: a kick / 808
+  PunchDetector d; std::vector<float> bed(64, 0.6f);                                // an audible mix (~ -58 dBFS per bin)
+  for (int i = 0; i < 30; i++) d.update(bed);
+  std::vector<float> kick = bed; for (int i = 6; i < 18; i++) kick[i] += 0.3f;      // 50–150 Hz burst: a kick / 808
   float hit = d.update(kick); CHECK(hit > 0.8f);
   float a = d.update(kick); a = d.update(kick); a = d.update(kick);
   CHECK(a < hit * 0.6f && a > 0);
-  PunchDetector s; for (int i = 0; i < 30; i++) s.update(quiet);
-  std::vector<float> snare = quiet; for (int i = 20; i < 50; i++) snare[i] += 0.35f;   // ~180 Hz–3 kHz: snare, vocals, hats
-  CHECK(s.update(snare) < 0.05f);                                                     // above the cutoff: not punch
+  PunchDetector s; for (int i = 0; i < 30; i++) s.update(bed);
+  std::vector<float> snare = bed; for (int i = 20; i < 50; i++) snare[i] += 0.3f;   // ~180 Hz–3 kHz: snare, vocals, hats
+  CHECK(s.update(snare) < 0.05f);                                                   // above the cutoff: not punch
+  PunchDetector q; std::vector<float> quiet(64, 0.1f); for (int i = 0; i < 30; i++) q.update(quiet);
+  std::vector<float> faint = quiet; for (int i = 6; i < 18; i++) faint[i] += 0.3f;  // same transient shape, inaudible level
+  CHECK(q.update(faint) < 0.05f);                                                   // audibility gate: not punch
+  PunchDetector sb; for (int i = 0; i < 30; i++) sb.update(bed);
+  std::vector<float> sub = bed; for (int i = 0; i < 6; i++) sub[i] += 0.3f;        // 30–50 Hz only: below what speakers reproduce
+  CHECK(sb.update(sub) < 0.05f);
   PunchDetector r; float last = 0;
   for (int i = 0; i < 60; i++) { std::vector<float> v(64); for (int k = 0; k < 64; k++) v[k] = 0.1f + 0.02f * std::sin(i * 0.7f + k); last = r.update(v); }
   CHECK(last < 0.35f);

@@ -99,16 +99,21 @@ bool BeatClock::update(double t, float bass) {
 }
 
 float PunchDetector::update(const std::vector<float>& spec) {
-  float flux = 0; int n = 0;
+  float flux = 0, sum = 0; int n = 0;
   for (int i = std::max(0, lo); i < std::min(int(spec.size()), hi); i++) {
     float d = spec[i] - (size_t(i) < prev_.size() ? prev_[i] : spec[i]);
     if (d > 0) flux += d;
+    sum += spec[i];
     n++;
   }
   prev_ = spec;
   flux = n ? flux / n : 0;
+  level = n ? sum / n : 0;
   avg_ += (flux - avg_) * 0.05f;
   float raw = std::clamp((flux - avg_) / std::max(0.004f, avg_ * gain), 0.f, 1.f);
+  // audibility gate (smoothstep on the band's absolute level): faint sub-bass or a near-silent passage cannot pulse
+  float g = std::clamp((level - levelLo) / std::max(1e-3f, levelHi - levelLo), 0.f, 1.f); g = g * g * (3 - 2 * g);
+  raw *= g;
   punch = std::max(raw, punch * decay);
   return punch;
 }

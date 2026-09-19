@@ -77,3 +77,7 @@ add_executable(soundscape-tests tests/test_main.cpp src/analysis.cpp src/abc.cpp
 target_include_directories(soundscape-tests PRIVATE src)
 target_link_libraries(soundscape-tests PRIVATE Threads::Threads)
 add_test(NAME unit COMMAND soundscape-tests)
+
+# Offline punch-detector calibration over raw f32 PCM (see tools/punch_calibrate.cpp); not part of the tests.
+add_executable(punch-calibrate tools/punch_calibrate.cpp src/analysis.cpp)
+target_include_directories(punch-calibrate PRIVATE src)

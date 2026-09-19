@@ -42,12 +42,18 @@ private:
 };
 
 /** Bass transient envelope ("punch") — port of visual.ts PunchDetector: positive spectral flux over log bins lo..hi
- * (default 30–150 Hz = bins 0..18 of the 64-bin spectrum: kicks, 808s, bass plucks; snares/vocals sit above) against
+ * (default ~50–150 Hz = bins 6..18 of the 64-bin spectrum: kicks, 808s, bass plucks; sub-bass most speakers cannot
+ * reproduce sits below, snares/vocals above), gated by the band's absolute level (levelLo..levelHi), against
  * the track's own running floor; no refractory, ~100 ms decay. Was 60 Hz–6 kHz until 2026-09-19. */
 class PunchDetector {
 public:
   int lo, hi; float decay, gain; float punch = 0;
-  explicit PunchDetector(int lo = 0, int hi = 18, float decay = 0.78f, float gain = 2.5f) : lo(lo), hi(hi), decay(decay), gain(gain) {}
+  // audibility gate: the band's mean analyser level (0..1 over -100..-30 dB) must reach levelHi for full punch and
+  // below levelLo nothing pulses. The adaptive floor alone let faint transients in quiet passages reach punch = 1
+  // ("lights up for sound I can't hear"); calibrated 2026-09-19 with tools/punch_calibrate.cpp over five library
+  // songs: 0.50/0.75 drops pulses from ~2.7/s to ~1/s and every remaining pulse sits at level >= ~0.7 (~ -50 dBFS).
+  float levelLo = 0.50f, levelHi = 0.75f; float level = 0;
+  explicit PunchDetector(int lo = 6, int hi = 18, float decay = 0.78f, float gain = 2.5f) : lo(lo), hi(hi), decay(decay), gain(gain) {}
   float update(const std::vector<float>& spec);
 private:
   std::vector<float> prev_; float avg_ = 0.02f;
