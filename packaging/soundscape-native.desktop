@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Soundscape
+Comment=Self-hosted AI radio — native Vulkan client
+Exec=soundscape-native
+Terminal=false
+Categories=AudioVideo;Audio;Player;
