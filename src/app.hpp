@@ -18,7 +18,7 @@
 namespace ss {
 
 struct Options { std::string apiBase = "http://127.0.0.1:3021"; bool validation = false; bool vsync = true; bool fullscreen = false; std::string station;
-  bool autoplay = false; std::string screenshot; double screenshotAfter = 8; double exitAfter = 0; int gpu = -1; };
+  bool autoplay = false; std::string screenshot; double screenshotAfter = 8; double exitAfter = 0; int gpu = -1; float renderScale = 2.f; bool maximized = true; float uiScale = 0.f; /* 0 = auto */ };
 
 struct App {
   explicit App(Options o);
@@ -26,14 +26,14 @@ struct App {
 
   // ---- core
   Options opt; MainQueue mq; Api api; AudioEngine audio; std::unique_ptr<RadioPlayer> player; Analyser analyser{ 2048, 0.8f };
-  GLFWwindow* window = nullptr; VkContext vk; Renderer renderer; ImFont *font = nullptr, *fontBold = nullptr, *fontBig = nullptr; float uiScale = 1.f;
+  GLFWwindow* window = nullptr; VkContext vk; Renderer renderer; ImFont *font = nullptr, *fontBold = nullptr, *fontBig = nullptr; float uiScale = 1.f, uiBaseScale = 1.f; bool uiScaleDirty = true;
 
   // ---- radio state (main thread)
   std::vector<Station> stations; std::optional<Station> station; RadioStatus status; std::optional<Song> song; RadioPlayer::Pos pos{ 0, 0 };
   bool paused = false; std::string mode = "radio"; Playlist playlist; int plIndex = -1;
   std::string err, notice; Health health; bool healthKnown = false; bool busyStation = false;
   char newStationName[128] = ""; char seedUrl[512] = ""; char apiEdit[256] = ""; float covers = 0.5f; bool coversDragging = false; int tab = 1;
-  bool panelVisible = true, fullscreen = false, crt = true; float glow = 0.12f, volume = 1.f, fps = 0; bool showHud = true;
+  bool panelVisible = true, fullscreen = false, crt = true; float renderScale = 2.f, glow = 0.12f, volume = 1.f, fps = 0; bool showHud = true;
   int savedWinX = 100, savedWinY = 100, savedWinW = 1600, savedWinH = 1000;
 
   // worker-visible copies (the player's next-song callback runs off the main thread)

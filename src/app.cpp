@@ -13,7 +13,7 @@ std::string fmtTime(double s) {
   int m = int(s) / 60, sec = int(s) % 60; char b[16]; std::snprintf(b, sizeof b, "%d:%02d", m, sec); return b;
 }
 
-App::App(Options o) : opt(std::move(o)), api(opt.apiBase) { std::snprintf(apiEdit, sizeof apiEdit, "%s", opt.apiBase.c_str()); }
+App::App(Options o) : opt(std::move(o)), api(opt.apiBase) { std::snprintf(apiEdit, sizeof apiEdit, "%s", opt.apiBase.c_str()); renderScale = opt.renderScale; }
 
 // ------------------------------------------------------------------ actions -------------------------------------------
 void App::refreshStations() {
@@ -258,9 +258,15 @@ int App::run() {
   }
   if (!glfwVulkanSupported()) { std::fprintf(stderr, "No Vulkan loader/ICD found (install libvulkan1 and your GPU's Vulkan driver)\n"); return 1; }
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+  if (opt.maximized && !opt.fullscreen) glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
   window = glfwCreateWindow(savedWinW, savedWinH, "Soundscape", nullptr, nullptr);
   if (!window) { std::fprintf(stderr, "window creation failed\n"); return 1; }
-  float sx = 1, sy = 1; glfwGetWindowContentScale(window, &sx, &sy); uiScale = std::max(1.f, sx);
+  // UI scale: the compositor's content scale × a size factor, so a 4K desktop at 100 % still gets readable panes.
+  float sx = 1, sy = 1; glfwGetWindowContentScale(window, &sx, &sy);
+  int fbw = 0, fbh = 0; glfwGetFramebufferSize(window, &fbw, &fbh);
+  uiScale = opt.uiScale > 0 ? opt.uiScale : std::max(1.f, sx) * std::clamp(fbh / (1100.f * std::max(1.f, sx)), 1.f, 2.5f);
+  uiScale = std::round(uiScale * 4) / 4;
+  uiBaseScale = uiScale;
   try {
     vk.vsync = opt.vsync; vk.preferredGpu = opt.gpu;
     vk.init(window, opt.validation);
@@ -270,7 +276,7 @@ int App::run() {
 #ifdef GLFW_PLATFORM_WAYLAND
   platform = glfwGetPlatform() == GLFW_PLATFORM_WAYLAND ? "wayland" : glfwGetPlatform() == GLFW_PLATFORM_X11 ? "x11" : "other";
 #endif
-  std::fprintf(stderr, "[soundscape] GPU: %s · %s · api %s\n", vk.gpuName.c_str(), platform, api.base().c_str());
+  std::fprintf(stderr, "[soundscape] GPU: %s · %s · api %s · ui %.2fx · render %.1fx\n", vk.gpuName.c_str(), platform, api.base().c_str(), uiScale, renderScale);
   for (size_t i = 0; i < vk.gpuNames.size(); i++) std::fprintf(stderr, "[soundscape]   --gpu %zu = %s\n", i, vk.gpuNames[i].c_str());
   // ---- ImGui
   IMGUI_CHECKVERSION(); ImGui::CreateContext(); ImGuiIO& io = ImGui::GetIO(); io.IniFilename = nullptr;
@@ -320,7 +326,7 @@ int App::run() {
     mark(3, tm);
     RenderParams rp; rp.x = 0; rp.y = 0; rp.h = int(vk.extent.height);
     const int panelW = panelVisible ? int(420 * uiScale) : 0;
-    rp.w = std::max(1, int(vk.extent.width) - panelW); rp.crt = crt; rp.glow = glow; rp.time = now;
+    rp.w = std::max(1, int(vk.extent.width) - panelW); rp.crt = crt; rp.glow = glow; rp.time = now; rp.renderScale = renderScale;
     renderer.render(cmd, imageIndex, frame, dt, rp);
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
     vkCmdEndRenderPass(cmd);

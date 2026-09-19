@@ -240,6 +240,12 @@ void settingsPane(App& a) {
   ImGui::SameLine(); ImGui::Checkbox("CRT", &a.crt); ImGui::SameLine(); ImGui::Checkbox("HUD", &a.showHud);
   ImGui::SameLine(); if (ImGui::Button(a.fullscreen ? "⛶ window" : "⛶ full")) a.toggleFullscreen();
   ImGui::AlignTextToFramePadding(); dimUnwrapped("glow"); ImGui::SameLine(); ImGui::SetNextItemWidth(110 * s); ImGui::SliderFloat("##glow", &a.glow, 0.f, 1.f, "");
+  ImGui::SameLine(); dimUnwrapped("render"); ImGui::SameLine();
+  for (float v : { 1.f, 2.f, 3.f }) { char l[8]; std::snprintf(l, sizeof l, "%gx", v); if (toggle(l, std::fabs(a.renderScale - v) < 0.01f)) a.renderScale = v; ImGui::SameLine(0, 2); }
+  ImGui::NewLine();
+  ImGui::AlignTextToFramePadding(); dimUnwrapped("ui"); ImGui::SameLine();
+  for (float v : { 1.f, 1.5f, 2.f, 2.5f, 3.f }) { char l[8]; std::snprintf(l, sizeof l, "%gx", v); if (toggle(l, std::fabs(a.uiScale - v) < 0.01f)) { a.uiScale = v; a.uiScaleDirty = true; } ImGui::SameLine(0, 2); }
+  ImGui::NewLine();
   ImGui::SameLine(); ImGui::AlignTextToFramePadding(); dimUnwrapped("api"); ImGui::SameLine(); ImGui::SetNextItemWidth(-1);
   if (ImGui::InputText("##api", a.apiEdit, sizeof a.apiEdit, ImGuiInputTextFlags_EnterReturnsTrue)) { a.api.setBase(a.apiEdit); a.healthKnown = false; a.backToStations(); a.refreshHealth(); }
   dimUnwrapped("Space play/stop · N skip · S save · F fullscreen · Tab panel · H hud · C crt");
@@ -248,9 +254,8 @@ void settingsPane(App& a) {
 } // namespace
 
 void drawUI(App& a) {
-  static bool styled = false;
-  if (!styled) { applyStyle(a.uiScale); styled = true; }
   ImGuiIO& io = ImGui::GetIO();
+  if (a.uiScaleDirty) { applyStyle(a.uiScale); ImGui::GetStyle().FontScaleMain = a.uiScale / a.uiBaseScale; a.uiScaleDirty = false; }
   const float W = io.DisplaySize.x, H = io.DisplaySize.y, pw = a.panelVisible ? 420 * a.uiScale : 0;
   if (a.showHud) drawHud(a, W - pw, H);
   if (!a.panelVisible) return;

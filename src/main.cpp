@@ -11,6 +11,9 @@ static void usage() {
             "  --no-vsync         mailbox/immediate present mode\n"
             "  --validation       enable VK_LAYER_KHRONOS_validation\n"
             "  --gpu N            pick the Vulkan device by index (env SOUNDSCAPE_GPU); the log lists them\n"
+            "  --render-scale X   supersample the scene X× the window size (default 2; 1 = off)\n"
+            "  --no-maximize      start with a 1600×1000 window instead of maximized\n"
+            "  --ui-scale X       panel/HUD scale (default: auto from display scale and size)\n"
             "  --autoplay         press Play once the station is loaded\n"
             "  --screenshot PATH  write a PPM of the window after --screenshot-after seconds (default 8)\n"
             "  --exit-after SEC   quit after SEC seconds (after the screenshot, if any)\n"
@@ -30,6 +33,9 @@ int main(int argc, char** argv) {
     else if (a == "--validation") o.validation = true;
     else if (a == "--autoplay") o.autoplay = true;
     else if (a == "--gpu" && i + 1 < argc) o.gpu = std::atoi(argv[++i]);
+    else if (a == "--render-scale" && i + 1 < argc) o.renderScale = float(std::atof(argv[++i]));
+    else if (a == "--no-maximize") o.maximized = false;
+    else if (a == "--ui-scale" && i + 1 < argc) o.uiScale = float(std::atof(argv[++i]));
     else if (a == "--screenshot" && i + 1 < argc) o.screenshot = argv[++i];
     else if (a == "--screenshot-after" && i + 1 < argc) o.screenshotAfter = std::atof(argv[++i]);
     else if (a == "--exit-after" && i + 1 < argc) o.exitAfter = std::atof(argv[++i]);

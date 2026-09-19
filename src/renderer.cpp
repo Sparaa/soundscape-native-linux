@@ -248,15 +248,17 @@ void Renderer::update(const VisualFrame& f, float dt) {
 void Renderer::render(VkCommandBuffer cmd, uint32_t imageIndex, const VisualFrame& f, float dt, const RenderParams& p) {
   update(f, dt);
   uint32_t w = uint32_t(std::max(1, p.w)), h = uint32_t(std::max(1, p.h));
-  if (offExtent_.width != w || offExtent_.height != h) { vkDeviceWaitIdle(ctx_->device); destroyOffscreen(); createOffscreen(w, h); }
+  const float sc = std::clamp(p.renderScale, 1.f, 4.f);
+  uint32_t ow = uint32_t(std::lround(w * sc)), oh = uint32_t(std::lround(h * sc));
+  if (offExtent_.width != ow || offExtent_.height != oh) { vkDeviceWaitIdle(ctx_->device); destroyOffscreen(); createOffscreen(ow, oh); }
   Buffer& ib = instVB_[ctx_->frame];
   std::memcpy(ib.mapped, inst_.data(), inst_.size() * sizeof(Inst));
   // ---- offscreen scene pass
   VkClearValue clear{}; clear.color = { { 0.f, 0.f, 0.f, 1.f } };
   VkRenderPassBeginInfo rp{ VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO }; rp.renderPass = offPass_; rp.framebuffer = offFb_; rp.renderArea = { { 0, 0 }, offExtent_ }; rp.clearValueCount = 1; rp.pClearValues = &clear;
   vkCmdBeginRenderPass(cmd, &rp, VK_SUBPASS_CONTENTS_INLINE);
-  VkViewport vp{ 0, 0, float(w), float(h), 0, 1 }; VkRect2D sc{ { 0, 0 }, { w, h } };
-  vkCmdSetViewport(cmd, 0, 1, &vp); vkCmdSetScissor(cmd, 0, 1, &sc);
+  VkViewport vp{ 0, 0, float(ow), float(oh), 0, 1 }; VkRect2D scis{ { 0, 0 }, { ow, oh } };
+  vkCmdSetViewport(cmd, 0, 1, &vp); vkCmdSetScissor(cmd, 0, 1, &scis);
   const float aspect = float(w) / float(h);
   Push pc{}; pc.proj[0] = 1.f / (CAM_HALF_H * aspect); pc.proj[1] = 1.f / CAM_HALF_H; pc.rot = 0; pc.scale = 1; pc.colorMul[0] = pc.colorMul[1] = pc.colorMul[2] = pc.colorMul[3] = 1;
   const float hit = f.beat.hit, bass = f.bands.bass;

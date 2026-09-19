@@ -10,6 +10,7 @@ namespace ss {
 struct RenderParams {
   int x = 0, y = 0, w = 1, h = 1;    // scene region in the swapchain (pixels)
   bool crt = true; float glow = 0.12f; double time = 0;
+  float renderScale = 2.f;             // offscreen = region × scale (supersampling; the post pass downsamples)
 };
 
 class Renderer {

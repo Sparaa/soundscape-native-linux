@@ -7,7 +7,7 @@ visualizer with raw Vulkan (GLSL → SPIR-V, no three.js, no browser). Dear ImGu
 
 ![the native client playing the Spanish Guitar station](docs/native.png)
 
-*Native client, GNOME Wayland, RTX PRO 6000: 60 fps with vsync, ~0.5 ms of CPU per frame.*
+*Native client on a 3840×2160 GNOME Wayland desktop, RTX PRO 6000: 60 fps with vsync, scene supersampled 2×, ~0.5 ms of CPU per frame.*
 
 The web UI is not needed while this runs; both can be open at once (they share the api's radio state).
 
@@ -41,7 +41,8 @@ ctest --test-dir build --output-on-failure     # unit tests: analysis, beat cloc
 ./build/soundscape-native                        # or: --api http://host:3021  --station <id>  --fullscreen
 ```
 
-Options: `--api URL` (or `SOUNDSCAPE_API=…`), `--station ID`, `--autoplay`, `--fullscreen`, `--gpu N` (or `SOUNDSCAPE_GPU`),
+Options: `--api URL` (or `SOUNDSCAPE_API=…`), `--station ID`, `--autoplay`, `--fullscreen`, `--no-maximize`, `--render-scale X`
+(scene supersampling, default 2), `--ui-scale X` (default auto from display scale and size), `--gpu N` (or `SOUNDSCAPE_GPU`),
 `--no-vsync`, `--validation`, `--screenshot out.ppm [--screenshot-after S]`, `--exit-after S`. `SOUNDSCAPE_X11=1` forces
 Xwayland; `SOUNDSCAPE_PROFILE=1` prints per-phase frame timings at exit.
 
@@ -55,7 +56,7 @@ Keys: **Space** play/stop · **N** skip · **S** save · **F**/**F11** fullscree
 | Stations | list, create, open; sidecar health line (yue2 / sheetsage / clipgrab · GPU · idle/loaded) |
 | Radio | STOP/SKIP, NEW ↔ SAVED (radio vs saved-song playlist), `covers ↔ new` slider, now playing + plan + progress + lyrics, SAVE / MORE LIKE THIS / LESS, UP NEXT (click to play now), rendering progress |
 | Station | PLAYLIST (saved songs, click to play), SEEDS (add a YouTube/any link, remove), PROFILE (sound, mood/genre tags, blurb) |
-| Settings | volume, CRT, HUD, glow, fullscreen, api URL |
+| Settings | volume, CRT, HUD, glow, render scale 1×/2×/3×, UI scale, fullscreen, api URL |
 
 The player is a port of the web app's `RadioPlayer`: two decks, a 3 s equal-time crossfade starting `duration − 3 s`,
 a 250 ms tick, a 15 s stuck watchdog, and a next-song fetch that always clears (a failed fetch retries after 1 s

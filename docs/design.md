@@ -38,6 +38,10 @@ already-downloaded bytes, so the lock is never held across I/O.
 - Blending: `MeshBasicMaterial` opaque draws use alpha blending with α = 1; the bloom bars and wheel glow use
   additive (`SrcAlpha, One`) like three's `AdditiveBlending`.
 - Draw order follows the web `renderOrder`: grid → bloom → segments → ticks → disc → bezel/lines → wheel glow → wheel.
+- Supersampling: the offscreen target is `renderScale` × the scene region (default 2×); the post pass samples it
+  with a linear sampler, which is a 2×2 box filter — cheap anti-aliasing for the rotated segment quads. UI scale
+  defaults to content scale × clamp(framebuffer height / 1100, 1, 2.5) so a 4K desktop at 100 % is readable; both
+  are switchable at runtime in the settings pane (ImGui 1.92 dynamic fonts re-bake via `FontScaleMain`).
 - Per frame the CPU rewrites 3328 segment + 128 bloom + 128 tick instances (40 bytes each) into a persistently
   mapped host-visible buffer (one per frame in flight).
 
