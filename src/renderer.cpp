@@ -261,7 +261,7 @@ void Renderer::render(VkCommandBuffer cmd, uint32_t imageIndex, const VisualFram
   vkCmdSetViewport(cmd, 0, 1, &vp); vkCmdSetScissor(cmd, 0, 1, &scis);
   const float aspect = float(w) / float(h);
   Push pc{}; pc.proj[0] = 1.f / (CAM_HALF_H * aspect); pc.proj[1] = 1.f / CAM_HALF_H; pc.rot = 0; pc.scale = 1; pc.colorMul[0] = pc.colorMul[1] = pc.colorMul[2] = pc.colorMul[3] = 1;
-  const float hit = f.beat.hit, bass = f.bands.bass, punch = f.beat.punch;   // the center rides the whole kit via punch
+  const float hit = f.beat.hit, bass = f.bands.bass, punch = f.beat.punch;   // the center rides the bass via punch (30–150 Hz transients)
   const float wheelRot = -t_ * 0.35f - hit * 0.04f - punch * 0.05f, wheelScale = 1 + 0.025f * hit + 0.10f * punch;
   auto pushFor = [&](const Draw& d) {
     Push q = pc;

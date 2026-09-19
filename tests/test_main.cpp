@@ -90,10 +90,13 @@ static void test_clock() {
 static void test_punch() {
   PunchDetector d; std::vector<float> quiet(64, 0.1f);
   for (int i = 0; i < 30; i++) d.update(quiet);
-  std::vector<float> snare = quiet; for (int i = 20; i < 50; i++) snare[i] += 0.35f;   // ~250 Hz–3 kHz burst
-  float hit = d.update(snare); CHECK(hit > 0.8f);
-  float a = d.update(snare); a = d.update(snare); a = d.update(snare);
+  std::vector<float> kick = quiet; for (int i = 0; i < 16; i++) kick[i] += 0.35f;   // 30–125 Hz burst: a kick / 808
+  float hit = d.update(kick); CHECK(hit > 0.8f);
+  float a = d.update(kick); a = d.update(kick); a = d.update(kick);
   CHECK(a < hit * 0.6f && a > 0);
+  PunchDetector s; for (int i = 0; i < 30; i++) s.update(quiet);
+  std::vector<float> snare = quiet; for (int i = 20; i < 50; i++) snare[i] += 0.35f;   // ~180 Hz–3 kHz: snare, vocals, hats
+  CHECK(s.update(snare) < 0.05f);                                                     // above the cutoff: not punch
   PunchDetector r; float last = 0;
   for (int i = 0; i < 60; i++) { std::vector<float> v(64); for (int k = 0; k < 64; k++) v[k] = 0.1f + 0.02f * std::sin(i * 0.7f + k); last = r.update(v); }
   CHECK(last < 0.35f);

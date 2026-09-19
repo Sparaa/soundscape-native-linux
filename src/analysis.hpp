@@ -41,12 +41,13 @@ private:
   double t0_; float lastBass_ = 0; double lastHitT_ = -1;
 };
 
-/** Percussive transient envelope ("punch") — port of visual.ts PunchDetector: positive spectral flux over log bins
- * lo..hi (default 60 Hz–6 kHz of the 64-bin spectrum) against the track's own running floor; no refractory, ~100 ms decay. */
+/** Bass transient envelope ("punch") — port of visual.ts PunchDetector: positive spectral flux over log bins lo..hi
+ * (default 30–150 Hz = bins 0..18 of the 64-bin spectrum: kicks, 808s, bass plucks; snares/vocals sit above) against
+ * the track's own running floor; no refractory, ~100 ms decay. Was 60 Hz–6 kHz until 2026-09-19. */
 class PunchDetector {
 public:
   int lo, hi; float decay, gain; float punch = 0;
-  explicit PunchDetector(int lo = 8, int hi = 60, float decay = 0.78f, float gain = 2.5f) : lo(lo), hi(hi), decay(decay), gain(gain) {}
+  explicit PunchDetector(int lo = 0, int hi = 18, float decay = 0.78f, float gain = 2.5f) : lo(lo), hi(hi), decay(decay), gain(gain) {}
   float update(const std::vector<float>& spec);
 private:
   std::vector<float> prev_; float avg_ = 0.02f;
