@@ -143,7 +143,7 @@ void VkContext::recreateSwapchain() {
   destroySwapchain();
   createSwapchain();
   wantRecreate_ = false;
-  std::fprintf(stderr, "[vulkan] swapchain %ux%u\n", extent.width, extent.height);
+  if (verbose) std::fprintf(stderr, "[vulkan] swapchain %ux%u\n", extent.width, extent.height);   // one line per resize step otherwise
   if (onSwapchainRecreated) onSwapchainRecreated();
 }
 

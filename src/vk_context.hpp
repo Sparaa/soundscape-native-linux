@@ -23,7 +23,7 @@ public:
   VkCommandPool pool = VK_NULL_HANDLE; VkCommandBuffer cmds[FRAMES]{}; VkSemaphore imageAvailable[FRAMES]{}; VkFence inFlight[FRAMES]{};
   std::vector<VkSemaphore> renderFinished;
   VkDescriptorPool descPool = VK_NULL_HANDLE;
-  int frame = 0; uint32_t apiVersion = VK_API_VERSION_1_1; std::string gpuName; bool vsync = true; uint32_t minImageCount = 2;
+  int frame = 0; uint32_t apiVersion = VK_API_VERSION_1_1; std::string gpuName; bool vsync = true; bool verbose = false; /* log each swapchain (re)creation */ uint32_t minImageCount = 2;
   bool srgbSwapchain = false;        // true only when no UNORM format was offered
   int preferredGpu = -1;             // index into vkEnumeratePhysicalDevices; -1 = auto
   std::vector<std::string> gpuNames;

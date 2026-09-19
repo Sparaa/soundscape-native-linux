@@ -17,7 +17,7 @@
 
 namespace ss {
 
-struct Options { std::string apiBase = "http://127.0.0.1:3021"; bool validation = false; bool vsync = true; bool fullscreen = false; std::string station;
+struct Options { std::string apiBase = "http://127.0.0.1:3021"; bool validation = false; bool verbose = false; bool vsync = true; bool fullscreen = false; std::string station;
   bool autoplay = false; std::string screenshot; double screenshotAfter = 8; double exitAfter = 0; int gpu = -1; float renderScale = 2.f; bool maximized = true; float uiScale = 0.f; /* 0 = auto */ double fullscreenToggleAt = 0; /* test: toggle at S and S+3 */ };
 
 struct App {

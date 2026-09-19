@@ -10,6 +10,7 @@ static void usage() {
             "  --fullscreen       start fullscreen (panel hidden)\n"
             "  --no-vsync         mailbox/immediate present mode\n"
             "  --validation       enable VK_LAYER_KHRONOS_validation\n"
+            "  --verbose, -v      log swapchain resizes and the frame-rate summary at exit (quiet by default)\n"
             "  --gpu N            pick the Vulkan device by index (env SOUNDSCAPE_GPU); the log lists them\n"
             "  --render-scale X   supersample the scene X× the window size (default 2; 1 = off)\n"
             "  --no-maximize      start with a 1920×1080 window instead of maximized (1920×1080 is the minimum)\n"
@@ -31,6 +32,7 @@ int main(int argc, char** argv) {
     else if (a == "--fullscreen") o.fullscreen = true;
     else if (a == "--no-vsync") o.vsync = false;
     else if (a == "--validation") o.validation = true;
+    else if (a == "--verbose" || a == "-v") o.verbose = true;
     else if (a == "--autoplay") o.autoplay = true;
     else if (a == "--gpu" && i + 1 < argc) o.gpu = std::atoi(argv[++i]);
     else if (a == "--render-scale" && i + 1 < argc) o.renderScale = float(std::atof(argv[++i]));

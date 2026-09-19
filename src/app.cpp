@@ -279,7 +279,7 @@ int App::run() {
   uiBaseScale = uiScale;
   try {
     vk.vsync = opt.vsync; vk.preferredGpu = opt.gpu;
-    vk.init(window, opt.validation);
+    vk.verbose = opt.verbose; vk.init(window, opt.validation);
     renderer.init(vk);
   } catch (const std::exception& e) { std::fprintf(stderr, "%s\n", e.what()); return 1; }
   const char* platform = "x11";
@@ -354,7 +354,7 @@ int App::run() {
   if (profile && totalFrames) for (int k = 0; k < 6; k++) std::fprintf(stderr, "[profile] %-15s %6.2f ms/frame\n", profName[k], prof[k] * 1000 / totalFrames);
   if (profile && playFrames) std::fprintf(stderr, "[profile] pulse: %.1f s of playback · punch peaks %.2f/s · punch > 0.5 for %.0f%% of frames · bass-hit peaks %.2f/s\n",
                                           playFrames / 60.0, punchPeaks / (playFrames / 60.0), 100.0 * punchHigh / playFrames, hitPeaks / (playFrames / 60.0));
-  std::fprintf(stderr, "[soundscape] %ld frames in %.1f s (%.0f fps avg, %s)\n", totalFrames, glfwGetTime() - t0, totalFrames / std::max(1e-3, glfwGetTime() - t0), opt.vsync ? "fifo" : "mailbox/immediate");
+  if (opt.verbose || profile) std::fprintf(stderr, "[soundscape] %ld frames in %.1f s (%.0f fps avg, %s)\n", totalFrames, glfwGetTime() - t0, totalFrames / std::max(1e-3, glfwGetTime() - t0), opt.vsync ? "fifo" : "mailbox/immediate");
   if (station && player && player->currentSong()) { try { api.radioStop(station->id); } catch (...) {} }
   player.reset(); audio.shutdown();
   ImGui_ImplVulkan_Shutdown(); ImGui_ImplGlfw_Shutdown(); ImGui::DestroyContext();
