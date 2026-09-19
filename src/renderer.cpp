@@ -222,14 +222,14 @@ void Renderer::update(const VisualFrame& f, float dt) {
     peak_[i] = std::max(level_[i], peak_[i] - dt * 0.22f);
   }
   const float flicker = 0.95f + 0.05f * std::sin(t_ * 47.f) * std::sin(t_ * 13.f);
-  const float spacing = (2 * PI * R_RAY) / N_, hit = f.beat.hit;
+  const float spacing = (2 * PI * R_RAY) / N_, hit = f.beat.hit, punch = f.beat.punch;
   auto set = [](Inst& o, float px, float py, const Dir& d, float w, float h, Col c, float a) {
     o.pos[0] = px; o.pos[1] = py; o.cs[0] = std::cos(d.rot); o.cs[1] = std::sin(d.rot); o.size[0] = w; o.size[1] = h; o.color[0] = c.r; o.color[1] = c.g; o.color[2] = c.b; o.color[3] = a;
   };
   auto scaled = [](Col c, float s) { return Col{ c.r * s, c.g * s, c.b * s }; };
   for (int k = 0; k < N_; k++) {
     int i = k % bins_; const Dir& d = dirs_[k];
-    float lv = std::min(1.f, level_[i] * (1 + 0.08f * hit));
+    float lv = std::min(1.f, level_[i] * (1 + 0.08f * hit + 0.06f * punch));
     int lit = int(std::lround(lv * segments_)), pk = std::min(segments_ - 1, int(std::lround(peak_[i] * segments_)));
     for (int j = 0; j < segments_; j++) {
       Col c;
@@ -261,14 +261,14 @@ void Renderer::render(VkCommandBuffer cmd, uint32_t imageIndex, const VisualFram
   vkCmdSetViewport(cmd, 0, 1, &vp); vkCmdSetScissor(cmd, 0, 1, &scis);
   const float aspect = float(w) / float(h);
   Push pc{}; pc.proj[0] = 1.f / (CAM_HALF_H * aspect); pc.proj[1] = 1.f / CAM_HALF_H; pc.rot = 0; pc.scale = 1; pc.colorMul[0] = pc.colorMul[1] = pc.colorMul[2] = pc.colorMul[3] = 1;
-  const float hit = f.beat.hit, bass = f.bands.bass;
-  const float wheelRot = -t_ * 0.35f - hit * 0.04f, wheelScale = 1 + 0.025f * hit;
+  const float hit = f.beat.hit, bass = f.bands.bass, punch = f.beat.punch;   // the center rides the whole kit via punch
+  const float wheelRot = -t_ * 0.35f - hit * 0.04f - punch * 0.05f, wheelScale = 1 + 0.025f * hit + 0.10f * punch;
   auto pushFor = [&](const Draw& d) {
     Push q = pc;
     switch (d.kind) {
-      case 1: q.colorMul[0] = 0.03f + 0.03f * bass; q.colorMul[1] = 0.004f; q.colorMul[2] = 0.008f; break;          // disc
-      case 2: q.colorMul[0] = q.colorMul[1] = q.colorMul[2] = 0.6f + 0.4f * hit; break;                              // bezel
-      case 4: q.rot = wheelRot; q.scale = wheelScale; q.colorMul[3] = 0.08f + 0.18f * bass + 0.15f * hit; break;      // wheel glow
+      case 1: q.colorMul[0] = 0.03f + 0.03f * bass + 0.07f * punch; q.colorMul[1] = 0.004f + 0.012f * punch; q.colorMul[2] = 0.008f + 0.012f * punch; break;   // disc
+      case 2: q.colorMul[0] = q.colorMul[1] = q.colorMul[2] = 0.6f + 0.4f * hit + 0.6f * punch; break;               // bezel
+      case 4: q.rot = wheelRot; q.scale = wheelScale; q.colorMul[3] = 0.08f + 0.18f * bass + 0.15f * hit + 0.40f * punch; break;   // wheel glow
       case 5: q.rot = wheelRot; q.scale = wheelScale; break;                                                          // wheel
       default: break;
     }

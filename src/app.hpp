@@ -40,7 +40,7 @@ struct App {
   std::mutex wmx; std::string wStationId; std::vector<Song> wPlaylist; int wPlIndex = -1; std::string wMode = "radio";
 
   // ---- visual
-  BeatClock clock{ 120, 0 }; std::vector<SectionCue> cues; Palette palette; std::string cueSong; VisualFrame frame;
+  BeatClock clock{ 120, 0 }; PunchDetector punchDet; std::vector<SectionCue> cues; Palette palette; std::string cueSong; VisualFrame frame;
   std::vector<uint8_t> fftBytes; std::vector<float> tap; double lastStatusPoll = -10, lastStationsPoll = -10, lastHealth = -10;
 
   // ---- actions

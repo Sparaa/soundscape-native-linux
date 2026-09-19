@@ -84,7 +84,7 @@ void drawHud(App& a, float sceneW, float sceneH) {
   std::snprintf(b, sizeof b, "MID  %s %3d%%", meter(f.bands.mid * 1.6f, 18, ascii).c_str(), int(std::lround(f.bands.mid * 100))); glowText(RED, b);
   std::snprintf(b, sizeof b, "TREB %s %3d%%", meter(f.bands.treble * 3.f, 18, ascii).c_str(), int(std::lround(f.bands.treble * 100))); glowText(RED, b);
   std::string sec = f.section ? upper(f.section->label) : "—", mode = a.song && a.song->plan ? " · MODE :: " + upper(a.song->plan->mode) : "";
-  std::snprintf(b, sizeof b, "BPM %d · BAR %ld · BEAT %s · SECTION :: %s%s", int(std::lround(f.beat.bpm)), f.beat.bar, meter(float(1 - f.beat.phase), 4, ascii).c_str(), sec.c_str(), mode.c_str());
+  std::snprintf(b, sizeof b, "BPM %d · BAR %ld · BEAT %s · PUNCH %s · SECTION :: %s%s", int(std::lround(f.beat.bpm)), f.beat.bar, meter(float(1 - f.beat.phase), 4, ascii).c_str(), meter(f.beat.punch, 4, ascii).c_str(), sec.c_str(), mode.c_str());
   glowText(RED_DIM, b);
   ImGui::End();
   // scene footer: fps · signal

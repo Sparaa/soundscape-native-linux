@@ -87,7 +87,21 @@ static void test_clock() {
   CHECK(f.section && f.section->label == "verse" && f.section->index == 1); NEAR(f.section->progress, 0.1, 1e-9);
 }
 
+static void test_punch() {
+  PunchDetector d; std::vector<float> quiet(64, 0.1f);
+  for (int i = 0; i < 30; i++) d.update(quiet);
+  std::vector<float> snare = quiet; for (int i = 20; i < 50; i++) snare[i] += 0.35f;   // ~250 Hz–3 kHz burst
+  float hit = d.update(snare); CHECK(hit > 0.8f);
+  float a = d.update(snare); a = d.update(snare); a = d.update(snare);
+  CHECK(a < hit * 0.6f && a > 0);
+  PunchDetector r; float last = 0;
+  for (int i = 0; i < 60; i++) { std::vector<float> v(64); for (int k = 0; k < 64; k++) v[k] = 0.1f + 0.02f * std::sin(i * 0.7f + k); last = r.update(v); }
+  CHECK(last < 0.35f);
+  VisualFrame f = makeFrame(1, Bands{}, BeatClock(120), {}, Palette{}, 10, {}, 0.7f); NEAR(f.beat.punch, 0.7, 1e-6);
+}
+
 int main() {
+  test_punch();
   test_abc(); test_bands(); test_analyser(); test_clock();
   std::printf("%d checks, %d failed\n", checks, fails);
   return fails ? 1 : 0;

@@ -41,6 +41,17 @@ private:
   double t0_; float lastBass_ = 0; double lastHitT_ = -1;
 };
 
+/** Percussive transient envelope ("punch") — port of visual.ts PunchDetector: positive spectral flux over log bins
+ * lo..hi (default 60 Hz–6 kHz of the 64-bin spectrum) against the track's own running floor; no refractory, ~100 ms decay. */
+class PunchDetector {
+public:
+  int lo, hi; float decay, gain; float punch = 0;
+  explicit PunchDetector(int lo = 8, int hi = 60, float decay = 0.78f, float gain = 2.5f) : lo(lo), hi(hi), decay(decay), gain(gain) {}
+  float update(const std::vector<float>& spec);
+private:
+  std::vector<float> prev_; float avg_ = 0.02f;
+};
+
 struct Palette { float hue = 0, sat = 0.8f, light = 0.6f, accentHue = 150; std::string name = "neutral"; };
 struct TagLabels { std::vector<std::string> mood, genre; };
 Palette paletteFor(const TagLabels* tags, int seed = 0);
@@ -49,14 +60,14 @@ struct SectionCue { std::string label; double t; };
 struct VisualFrame {
   double t = 0;
   Bands bands;
-  struct { double phase = 0; long index = 0; long bar = 0; float bpm = 120; float hit = 0; } beat;
+  struct { double phase = 0; long index = 0; long bar = 0; float bpm = 120; float hit = 0; float punch = 0; } beat;
   struct Section { std::string label; int index; double progress; };
   std::optional<Section> section;
   Palette palette;
   std::vector<float> spectrum;
 };
 VisualFrame makeFrame(double t, const Bands& bands, const BeatClock& clock, const std::vector<SectionCue>& cues,
-                      const Palette& palette, double durationS, std::vector<float> spectrum);
+                      const Palette& palette, double durationS, std::vector<float> spectrum, float punch = 0);
 
 /** GPU-Pulse style text meter: meter(0.62, 10) → "▰▰▰▰▰▰▱▱▱▱" (or "#"/"." with ascii = true). */
 std::string meter(float v, int n = 12, bool ascii = false);

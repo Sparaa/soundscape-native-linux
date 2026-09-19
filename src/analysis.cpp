@@ -98,6 +98,21 @@ bool BeatClock::update(double t, float bass) {
   return false;
 }
 
+float PunchDetector::update(const std::vector<float>& spec) {
+  float flux = 0; int n = 0;
+  for (int i = std::max(0, lo); i < std::min(int(spec.size()), hi); i++) {
+    float d = spec[i] - (size_t(i) < prev_.size() ? prev_[i] : spec[i]);
+    if (d > 0) flux += d;
+    n++;
+  }
+  prev_ = spec;
+  flux = n ? flux / n : 0;
+  avg_ += (flux - avg_) * 0.05f;
+  float raw = std::clamp((flux - avg_) / std::max(0.004f, avg_ * gain), 0.f, 1.f);
+  punch = std::max(raw, punch * decay);
+  return punch;
+}
+
 static float moodHue(const std::string& m, bool& ok) {
   static const std::pair<const char*, float> T[] = { {"dark", 260}, {"epic", 30}, {"energetic", 10}, {"playful", 320}, {"happy", 50}, {"sad", 210}, {"calm", 170}, {"dreamy", 280}, {"aggressive", 0}, {"romantic", 340}, {"melancholic", 220}, {"hopeful", 100} };
   for (auto& [k, v] : T) if (m == k) { ok = true; return v; }
@@ -124,9 +139,9 @@ Palette paletteFor(const TagLabels* tags, int seed) {
 }
 
 VisualFrame makeFrame(double t, const Bands& bands, const BeatClock& clock, const std::vector<SectionCue>& cues,
-                      const Palette& palette, double durationS, std::vector<float> spectrum) {
+                      const Palette& palette, double durationS, std::vector<float> spectrum, float punch) {
   VisualFrame f; f.t = t; f.bands = bands; f.palette = palette; f.spectrum = std::move(spectrum);
-  f.beat.phase = clock.phase(t); f.beat.index = clock.beatIndex(t); f.beat.bar = clock.bar(t); f.beat.bpm = clock.bpm; f.beat.hit = clock.hit;
+  f.beat.phase = clock.phase(t); f.beat.index = clock.beatIndex(t); f.beat.bar = clock.bar(t); f.beat.bpm = clock.bpm; f.beat.hit = clock.hit; f.beat.punch = punch;
   int idx = -1;
   for (size_t i = 0; i < cues.size(); i++) { if (cues[i].t <= t) idx = int(i); else break; }
   if (idx >= 0) {
