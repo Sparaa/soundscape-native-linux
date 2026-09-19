@@ -5,7 +5,9 @@ It talks to the Soundscape api directly (stations, play/skip/save, seeds, saved-
 a gapless crossfade through PipeWire/PulseAudio/ALSA, analyses the mix itself, and renders the red-phosphor **pulse**
 visualizer with raw Vulkan (GLSL → SPIR-V, no three.js, no browser). Dear ImGui draws the side panel and the HUD.
 
-![pulse scene](docs/hero.png)
+![the native client playing the Spanish Guitar station](docs/native.png)
+
+*Native client, GNOME Wayland, RTX PRO 6000: 60 fps with vsync, ~0.5 ms of CPU per frame.*
 
 The web UI is not needed while this runs; both can be open at once (they share the api's radio state).
 
@@ -17,13 +19,17 @@ The web UI is not needed while this runs; both can be open at once (they share t
 - Build tools (Ubuntu 24.04 names):
 
 ```bash
-sudo apt-get install -y build-essential cmake git glslc libvulkan-dev libglfw3-dev nlohmann-json3-dev \
-                        libcurl4-openssl-dev libasound2-dev vulkan-tools
+sudo apt-get install -y build-essential cmake git glslc libvulkan-dev nlohmann-json3-dev libcurl4-openssl-dev \
+                        libasound2-dev vulkan-tools \
+                        libwayland-dev wayland-protocols libxkbcommon-dev libdecor-0-dev \
+                        libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev
 # optional, for --validation:
 sudo apt-get install -y vulkan-validationlayers
 ```
 
-Dear ImGui (v1.92.9) and miniaudio (0.11.25) are fetched by CMake at configure time; everything else comes from apt.
+GLFW 3.4 (built in-tree with the Wayland **and** X11 backends — the distro package is X11-only, and on a two-GPU GNOME
+Wayland desktop an Xwayland surface was capped at ~35 fps by a cross-GPU copy), Dear ImGui (v1.92.9) and miniaudio
+(0.11.25) are fetched by CMake at configure time; everything else comes from apt.
 
 ## Build and run
 
@@ -35,7 +41,9 @@ ctest --test-dir build --output-on-failure     # unit tests: analysis, beat cloc
 ./build/soundscape-native                        # or: --api http://host:3021  --station <id>  --fullscreen
 ```
 
-Options: `--api URL` (or `SOUNDSCAPE_API=…`), `--station ID`, `--fullscreen`, `--no-vsync`, `--validation`.
+Options: `--api URL` (or `SOUNDSCAPE_API=…`), `--station ID`, `--autoplay`, `--fullscreen`, `--gpu N` (or `SOUNDSCAPE_GPU`),
+`--no-vsync`, `--validation`, `--screenshot out.ppm [--screenshot-after S]`, `--exit-after S`. `SOUNDSCAPE_X11=1` forces
+Xwayland; `SOUNDSCAPE_PROFILE=1` prints per-phase frame timings at exit.
 
 Keys: **Space** play/stop · **N** skip · **S** save · **F**/**F11** fullscreen (panel hidden) · **Tab** panel ·
 **H** HUD · **C** CRT post pass · **Ctrl+Q** quit.
@@ -60,7 +68,8 @@ Design notes: [`docs/design.md`](docs/design.md).
 
 ## Status
 
-v0.1 — first cut. Ported: the `pulse` scene with its CRT post pass, the radio/playlist player, stations/seeds/profile.
+v0.1 — built, running live against the api on a two-GPU GNOME Wayland workstation (60 fps, validation layers clean).
+Ported: the `pulse` scene with its CRT post pass, the radio/playlist player, stations/seeds/profile.
 Not yet: the `radial` / `nebula` / `rings` scenes, seed **upload** from a local file (links work), library view,
 playlist export. See `docs/design.md` → "Not ported yet".
 

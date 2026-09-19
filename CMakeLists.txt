@@ -9,7 +9,6 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 find_package(Vulkan REQUIRED)
-find_package(glfw3 3.3 REQUIRED)
 find_package(CURL REQUIRED)
 find_package(nlohmann_json 3.10 REQUIRED)
 find_package(Threads REQUIRED)
@@ -17,8 +16,18 @@ find_program(GLSLC glslc REQUIRED)
 
 include(FetchContent)
 FetchContent_Declare(imgui GIT_REPOSITORY https://github.com/ocornut/imgui.git GIT_TAG v1.92.9 GIT_SHALLOW TRUE)
-FetchContent_Declare(miniaudio GIT_REPOSITORY https://github.com/mackron/miniaudio.git GIT_TAG 0.11.25 GIT_SHALLOW TRUE)
-FetchContent_MakeAvailable(imgui miniaudio)
+# GLFW 3.4 built in-tree with BOTH backends: the distro libglfw3 is X11-only, and under GNOME Wayland an Xwayland
+# surface can only be presented from the GPU Xwayland is bound to (a cross-GPU copy capped this app at ~35 fps).
+set(GLFW_BUILD_WAYLAND ON CACHE BOOL "" FORCE)
+set(GLFW_BUILD_X11 ON CACHE BOOL "" FORCE)
+set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(glfw GIT_REPOSITORY https://github.com/glfw/glfw.git GIT_TAG 3.4 GIT_SHALLOW TRUE)
+FetchContent_Declare(miniaudio GIT_REPOSITORY https://github.com/mackron/miniaudio.git GIT_TAG 0.11.25 GIT_SHALLOW TRUE SOURCE_SUBDIR no-cmake-here)   # header only; skip its CMakeLists
+FetchContent_MakeAvailable(glfw imgui miniaudio)
 
 add_library(imgui STATIC
   ${imgui_SOURCE_DIR}/imgui.cpp ${imgui_SOURCE_DIR}/imgui_draw.cpp ${imgui_SOURCE_DIR}/imgui_tables.cpp
@@ -29,10 +38,10 @@ target_link_libraries(imgui PUBLIC glfw Vulkan::Vulkan)
 target_compile_options(imgui PRIVATE -w)
 
 # miniaudio: one translation unit with the implementation
-add_library(miniaudio STATIC src/miniaudio_impl.c)
-target_include_directories(miniaudio PUBLIC ${miniaudio_SOURCE_DIR})
-target_link_libraries(miniaudio PUBLIC ${CMAKE_DL_LIBS} Threads::Threads m)
-target_compile_options(miniaudio PRIVATE -w)
+add_library(ma_impl STATIC src/miniaudio_impl.c)
+target_include_directories(ma_impl PUBLIC ${miniaudio_SOURCE_DIR})
+target_link_libraries(ma_impl PUBLIC ${CMAKE_DL_LIBS} Threads::Threads m)
+target_compile_options(ma_impl PRIVATE -w)
 
 # ---- shaders: GLSL -> SPIR-V -> embedded byte arrays --------------------------------------------------------------
 set(SHADERS scene_inst.vert scene_inst.frag scene_static.vert scene_static.frag post.vert post.frag)
@@ -54,7 +63,7 @@ add_executable(soundscape-native
   src/main.cpp src/app.cpp src/api.cpp src/audio.cpp src/analysis.cpp src/abc.cpp src/player.cpp
   src/vk_context.cpp src/renderer.cpp src/ui.cpp ${EMBED_CPP})
 target_include_directories(soundscape-native PRIVATE src)
-target_link_libraries(soundscape-native PRIVATE imgui miniaudio Vulkan::Vulkan glfw CURL::libcurl nlohmann_json::nlohmann_json Threads::Threads)
+target_link_libraries(soundscape-native PRIVATE imgui ma_impl Vulkan::Vulkan glfw CURL::libcurl nlohmann_json::nlohmann_json Threads::Threads)
 target_compile_options(soundscape-native PRIVATE -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers)
 target_compile_definitions(soundscape-native PRIVATE GLFW_INCLUDE_NONE GLFW_INCLUDE_VULKAN)
 

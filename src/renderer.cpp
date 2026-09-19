@@ -144,8 +144,10 @@ void Renderer::createOffscreen(uint32_t w, uint32_t h) {
 }
 void Renderer::destroyOffscreen() {
   VkDevice dev = ctx_->device;
-  if (offFb_) vkDestroyFramebuffer(dev, offFb_, nullptr); if (offView_) vkDestroyImageView(dev, offView_, nullptr);
-  if (offImg_) vkDestroyImage(dev, offImg_, nullptr); if (offMem_) vkFreeMemory(dev, offMem_, nullptr);
+  if (offFb_) vkDestroyFramebuffer(dev, offFb_, nullptr);
+  if (offView_) vkDestroyImageView(dev, offView_, nullptr);
+  if (offImg_) vkDestroyImage(dev, offImg_, nullptr);
+  if (offMem_) vkFreeMemory(dev, offMem_, nullptr);
   offFb_ = VK_NULL_HANDLE; offView_ = VK_NULL_HANDLE; offImg_ = VK_NULL_HANDLE; offMem_ = VK_NULL_HANDLE; offExtent_ = {};
 }
 
@@ -200,8 +202,11 @@ void Renderer::destroy() {
   VkDevice dev = ctx_->device; vkDeviceWaitIdle(dev);
   destroyOffscreen();
   for (auto p : { pipeInst_, pipeInstAdd_, pipeStatic_, pipeStaticAdd_, pipePost_ }) if (p) vkDestroyPipeline(dev, p, nullptr);
-  if (sceneLayout_) vkDestroyPipelineLayout(dev, sceneLayout_, nullptr); if (postLayout_) vkDestroyPipelineLayout(dev, postLayout_, nullptr);
-  if (dsl_) vkDestroyDescriptorSetLayout(dev, dsl_, nullptr); if (sampler_) vkDestroySampler(dev, sampler_, nullptr); if (offPass_) vkDestroyRenderPass(dev, offPass_, nullptr);
+  if (sceneLayout_) vkDestroyPipelineLayout(dev, sceneLayout_, nullptr);
+  if (postLayout_) vkDestroyPipelineLayout(dev, postLayout_, nullptr);
+  if (dsl_) vkDestroyDescriptorSetLayout(dev, dsl_, nullptr);
+  if (sampler_) vkDestroySampler(dev, sampler_, nullptr);
+  if (offPass_) vkDestroyRenderPass(dev, offPass_, nullptr);
   ctx_->destroyBuffer(quadVB_); ctx_->destroyBuffer(staticVB_); for (auto& b : instVB_) ctx_->destroyBuffer(b);
   ctx_ = nullptr;
 }

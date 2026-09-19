@@ -28,9 +28,10 @@ void App::selectStation(const std::string& id) {
   busyStation = true;
   async_call<Station>(mq, [this, id] { return api.getStation(id); },
     [this](Station s) {
-      busyStation = false; station = s; covers = s.has_covers ? s.covers : 0.5f; err.clear(); tab = s.seeds.empty() ? 1 : 1;
+      busyStation = false; station = s; covers = s.has_covers ? s.covers : 0.5f; err.clear(); tab = 1;
       { std::lock_guard<std::mutex> g(wmx); wStationId = s.id; }
       lastStatusPoll = -10; loadPlaylist();
+      if (opt.autoplay) { opt.autoplay = false; play(); }
     },
     [this](std::string e) { busyStation = false; err = e; });
 }
@@ -222,23 +223,55 @@ void App::handleKeys() {
   if (ImGui::IsKeyPressed(ImGuiKey_Q, false) && io.KeyCtrl) glfwSetWindowShouldClose(window, 1);
 }
 
+bool App::writeCapture() {
+  std::vector<uint8_t> px; uint32_t w = 0, h = 0; bool bgr = false;
+  if (!vk.takeCapture(px, w, h, bgr)) return false;
+  FILE* f = std::fopen(opt.screenshot.c_str(), "wb");
+  if (!f) { std::fprintf(stderr, "[soundscape] cannot write %s\n", opt.screenshot.c_str()); return true; }
+  std::fprintf(f, "P6\n%u %u\n255\n", w, h);
+  std::vector<uint8_t> row(size_t(w) * 3);
+  for (uint32_t y = 0; y < h; y++) {
+    const uint8_t* src = px.data() + size_t(y) * w * 4;
+    for (uint32_t x = 0; x < w; x++) { row[x * 3] = src[x * 4 + (bgr ? 2 : 0)]; row[x * 3 + 1] = src[x * 4 + 1]; row[x * 3 + 2] = src[x * 4 + (bgr ? 0 : 2)]; }
+    std::fwrite(row.data(), 1, row.size(), f);
+  }
+  std::fclose(f);
+  std::fprintf(stderr, "[soundscape] screenshot %ux%u → %s\n", w, h, opt.screenshot.c_str());
+  return true;
+}
+
 // ------------------------------------------------------------------ run -----------------------------------------------
 static void glfwErr(int code, const char* d) { std::fprintf(stderr, "[glfw] %d: %s\n", code, d); }
 
 int App::run() {
   glfwSetErrorCallback(glfwErr);
-  if (!glfwInit()) { std::fprintf(stderr, "GLFW init failed\n"); return 1; }
+#ifdef GLFW_PLATFORM_WAYLAND
+  // Native Wayland when the session offers it (GLFW 3.4): the display GPU can present directly. SOUNDSCAPE_X11=1 forces Xwayland.
+  if (std::getenv("WAYLAND_DISPLAY") && !std::getenv("SOUNDSCAPE_X11") && glfwPlatformSupported(GLFW_PLATFORM_WAYLAND)) glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_WAYLAND);
+#endif
+  if (!glfwInit()) {
+#ifdef GLFW_PLATFORM_WAYLAND
+    glfwInitHint(GLFW_PLATFORM, GLFW_ANY_PLATFORM);
+    if (!glfwInit())
+#endif
+    { std::fprintf(stderr, "GLFW init failed\n"); return 1; }
+  }
   if (!glfwVulkanSupported()) { std::fprintf(stderr, "No Vulkan loader/ICD found (install libvulkan1 and your GPU's Vulkan driver)\n"); return 1; }
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
   window = glfwCreateWindow(savedWinW, savedWinH, "Soundscape", nullptr, nullptr);
   if (!window) { std::fprintf(stderr, "window creation failed\n"); return 1; }
   float sx = 1, sy = 1; glfwGetWindowContentScale(window, &sx, &sy); uiScale = std::max(1.f, sx);
   try {
-    vk.vsync = opt.vsync;
+    vk.vsync = opt.vsync; vk.preferredGpu = opt.gpu;
     vk.init(window, opt.validation);
     renderer.init(vk);
   } catch (const std::exception& e) { std::fprintf(stderr, "%s\n", e.what()); return 1; }
-  std::fprintf(stderr, "[soundscape] GPU: %s · api %s\n", vk.gpuName.c_str(), api.base().c_str());
+  const char* platform = "x11";
+#ifdef GLFW_PLATFORM_WAYLAND
+  platform = glfwGetPlatform() == GLFW_PLATFORM_WAYLAND ? "wayland" : glfwGetPlatform() == GLFW_PLATFORM_X11 ? "x11" : "other";
+#endif
+  std::fprintf(stderr, "[soundscape] GPU: %s · %s · api %s\n", vk.gpuName.c_str(), platform, api.base().c_str());
+  for (size_t i = 0; i < vk.gpuNames.size(); i++) std::fprintf(stderr, "[soundscape]   --gpu %zu = %s\n", i, vk.gpuNames[i].c_str());
   // ---- ImGui
   IMGUI_CHECKVERSION(); ImGui::CreateContext(); ImGuiIO& io = ImGui::GetIO(); io.IniFilename = nullptr;
   const char* mono = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", *monoB = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf";
@@ -262,31 +295,45 @@ int App::run() {
   if (!opt.station.empty()) selectStation(opt.station);
   if (opt.fullscreen) toggleFullscreen();
   // ---- loop
-  double last = glfwGetTime(), fpsT = last; int frames = 0;
+  double last = glfwGetTime(), fpsT = last, t0 = last; int frames = 0; long totalFrames = 0; bool shotRequested = false, shotDone = false;
+  const bool profile = std::getenv("SOUNDSCAPE_PROFILE") != nullptr; double prof[6] = {}; const char* profName[6] = { "events+tick", "analyse", "acquire", "imgui", "record", "submit+present" };
+  auto mark = [&](int k, double& tm) { if (!profile) return; double n = glfwGetTime(); prof[k] += n - tm; tm = n; };
   while (!glfwWindowShouldClose(window)) {
+    double tm = glfwGetTime();
     glfwPollEvents();
     mq.drain();
     double now = glfwGetTime(); float dt = float(std::min(0.1, now - last)); last = now;
     player->tick(now);
     pollStatus(now);
     audio.setVolume(volume);
+    mark(0, tm);
     computeFrame(dt);
+    mark(1, tm);
     uint32_t imageIndex = 0; VkCommandBuffer cmd = VK_NULL_HANDLE;
     if (!vk.beginFrame(imageIndex, cmd)) continue;
+    mark(2, tm);
+    if (!opt.screenshot.empty() && !shotRequested && now - t0 >= opt.screenshotAfter) { shotRequested = true; vk.requestCapture(); }
     ImGui_ImplVulkan_NewFrame(); ImGui_ImplGlfw_NewFrame(); ImGui::NewFrame();
     handleKeys();
     drawUI(*this);
     ImGui::Render();
+    mark(3, tm);
     RenderParams rp; rp.x = 0; rp.y = 0; rp.h = int(vk.extent.height);
     const int panelW = panelVisible ? int(420 * uiScale) : 0;
     rp.w = std::max(1, int(vk.extent.width) - panelW); rp.crt = crt; rp.glow = glow; rp.time = now;
     renderer.render(cmd, imageIndex, frame, dt, rp);
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
     vkCmdEndRenderPass(cmd);
+    mark(4, tm);
     vk.endFrame(imageIndex);
-    frames++; if (now - fpsT > 1) { fps = float(frames / (now - fpsT)); frames = 0; fpsT = now; }
+    mark(5, tm);
+    if (shotRequested && !shotDone && writeCapture()) shotDone = true;
+    if (opt.exitAfter > 0 && now - t0 >= opt.exitAfter && (opt.screenshot.empty() || shotDone)) glfwSetWindowShouldClose(window, 1);
+    frames++; totalFrames++; if (now - fpsT > 1) { fps = float(frames / (now - fpsT)); frames = 0; fpsT = now; }
   }
   vkDeviceWaitIdle(vk.device);
+  if (profile && totalFrames) for (int k = 0; k < 6; k++) std::fprintf(stderr, "[profile] %-15s %6.2f ms/frame\n", profName[k], prof[k] * 1000 / totalFrames);
+  std::fprintf(stderr, "[soundscape] %ld frames in %.1f s (%.0f fps avg, %s)\n", totalFrames, glfwGetTime() - t0, totalFrames / std::max(1e-3, glfwGetTime() - t0), opt.vsync ? "fifo" : "mailbox/immediate");
   if (station && player && player->currentSong()) { try { api.radioStop(station->id); } catch (...) {} }
   player.reset(); audio.shutdown();
   ImGui_ImplVulkan_Shutdown(); ImGui_ImplGlfw_Shutdown(); ImGui::DestroyContext();

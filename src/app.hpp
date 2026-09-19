@@ -17,7 +17,8 @@
 
 namespace ss {
 
-struct Options { std::string apiBase = "http://127.0.0.1:3021"; bool validation = false; bool vsync = true; bool fullscreen = false; std::string station; };
+struct Options { std::string apiBase = "http://127.0.0.1:3021"; bool validation = false; bool vsync = true; bool fullscreen = false; std::string station;
+  bool autoplay = false; std::string screenshot; double screenshotAfter = 8; double exitAfter = 0; int gpu = -1; };
 
 struct App {
   explicit App(Options o);
@@ -32,7 +33,7 @@ struct App {
   bool paused = false; std::string mode = "radio"; Playlist playlist; int plIndex = -1;
   std::string err, notice; Health health; bool healthKnown = false; bool busyStation = false;
   char newStationName[128] = ""; char seedUrl[512] = ""; char apiEdit[256] = ""; float covers = 0.5f; bool coversDragging = false; int tab = 1;
-  bool panelVisible = true, fullscreen = false, crt = true; float glow = 0.35f, volume = 1.f, fps = 0; bool showHud = true;
+  bool panelVisible = true, fullscreen = false, crt = true; float glow = 0.12f, volume = 1.f, fps = 0; bool showHud = true;
   int savedWinX = 100, savedWinY = 100, savedWinW = 1600, savedWinH = 1000;
 
   // worker-visible copies (the player's next-song callback runs off the main thread)
@@ -68,6 +69,7 @@ struct App {
   void computeFrame(double dt);
   void handleKeys();
   std::optional<Song> nextForWorker();       // runs on a worker thread
+  bool writeCapture();                       // after endFrame: PPM to opt.screenshot
 };
 
 void drawUI(App& app);            // ui.cpp: side panel + HUD

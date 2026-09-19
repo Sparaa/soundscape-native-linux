@@ -12,9 +12,9 @@ vec3 toLinear(vec3 c) { return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)
 void main() {
   vec2 uv = vUV;
   vec3 base = texture(uScene, uv).rgb;
-  // glow: 12-tap ring blur, radius ~7 px, added at low weight (phosphor bleed)
+  // glow: 12-tap ring blur, radius ~4 px, added at low weight (phosphor bleed)
   vec3 g = vec3(0.0);
-  vec2 px = 7.0 / pc.res;
+  vec2 px = 4.0 / pc.res;
   for (int i = 0; i < 12; i++) {
     float a = float(i) * 0.5235988;           // 30°
     g += texture(uScene, uv + vec2(cos(a), sin(a)) * px).rgb;

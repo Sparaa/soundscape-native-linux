@@ -24,6 +24,8 @@ public:
   std::vector<VkSemaphore> renderFinished;
   VkDescriptorPool descPool = VK_NULL_HANDLE;
   int frame = 0; uint32_t apiVersion = VK_API_VERSION_1_1; std::string gpuName; bool vsync = true; uint32_t minImageCount = 2;
+  int preferredGpu = -1;             // index into vkEnumeratePhysicalDevices; -1 = auto
+  std::vector<std::string> gpuNames;
   std::function<void()> onSwapchainRecreated;
 
   void init(GLFWwindow* w, bool validation);
@@ -33,6 +35,9 @@ public:
   bool beginFrame(uint32_t& imageIndex, VkCommandBuffer& cmd);
   void endFrame(uint32_t imageIndex);
   void beginSwapchainPass(VkCommandBuffer cmd, uint32_t imageIndex);
+  /** Ask endFrame() to copy this frame's swapchain image into a host buffer; takeCapture() collects it (BGRA8/RGBA8). */
+  void requestCapture() { captureRequested_ = true; }
+  bool takeCapture(std::vector<uint8_t>& pixels, uint32_t& w, uint32_t& h, bool& bgr);
 
   uint32_t memType(uint32_t bits, VkMemoryPropertyFlags props);
   Buffer createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags props, bool map);
@@ -46,6 +51,7 @@ private:
   void createSwapchain();
   void destroySwapchain();
   bool wantRecreate_ = false;
+  bool captureRequested_ = false; int capturePending_ = -1; VkExtent2D captureExtent_{}; Buffer captureBuf_;
 };
 
 } // namespace ss

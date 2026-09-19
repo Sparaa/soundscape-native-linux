@@ -186,7 +186,11 @@ void stationPane(App& a) {
   const float s = a.uiScale; Station& st = *a.station;
   ImGui::BeginChild("station", ImVec2(0, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY);
   char t0[40], t1[40]; std::snprintf(t0, sizeof t0, "PLAYLIST · %d", int(a.playlist.items.size())); std::snprintf(t1, sizeof t1, "SEEDS · %d", int(st.seeds.size()));
-  if (toggle(t0, a.tab == 0)) a.tab = 0; ImGui::SameLine(0, 2); if (toggle(t1, a.tab == 1)) a.tab = 1; ImGui::SameLine(0, 2); if (toggle("PROFILE", a.tab == 2)) a.tab = 2;
+  if (toggle(t0, a.tab == 0)) a.tab = 0;
+  ImGui::SameLine(0, 2);
+  if (toggle(t1, a.tab == 1)) a.tab = 1;
+  ImGui::SameLine(0, 2);
+  if (toggle("PROFILE", a.tab == 2)) a.tab = 2;
   if (a.tab == 1) {
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 52 * s);
     bool enter = ImGui::InputTextWithHint("##seedurl", "paste a youtube / any link", a.seedUrl, sizeof a.seedUrl, ImGuiInputTextFlags_EnterReturnsTrue);

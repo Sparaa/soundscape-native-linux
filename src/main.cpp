@@ -10,12 +10,17 @@ static void usage() {
             "  --fullscreen       start fullscreen (panel hidden)\n"
             "  --no-vsync         mailbox/immediate present mode\n"
             "  --validation       enable VK_LAYER_KHRONOS_validation\n"
+            "  --gpu N            pick the Vulkan device by index (env SOUNDSCAPE_GPU); the log lists them\n"
+            "  --autoplay         press Play once the station is loaded\n"
+            "  --screenshot PATH  write a PPM of the window after --screenshot-after seconds (default 8)\n"
+            "  --exit-after SEC   quit after SEC seconds (after the screenshot, if any)\n"
             "keys: Space play/stop · N skip · S save · F/F11 fullscreen · Tab panel · H hud · C crt · Ctrl+Q quit");
 }
 
 int main(int argc, char** argv) {
   ss::Options o;
   if (const char* e = std::getenv("SOUNDSCAPE_API")) o.apiBase = e;
+  if (const char* e = std::getenv("SOUNDSCAPE_GPU")) o.gpu = std::atoi(e);
   for (int i = 1; i < argc; i++) {
     std::string a = argv[i];
     if (a == "--api" && i + 1 < argc) o.apiBase = argv[++i];
@@ -23,6 +28,11 @@ int main(int argc, char** argv) {
     else if (a == "--fullscreen") o.fullscreen = true;
     else if (a == "--no-vsync") o.vsync = false;
     else if (a == "--validation") o.validation = true;
+    else if (a == "--autoplay") o.autoplay = true;
+    else if (a == "--gpu" && i + 1 < argc) o.gpu = std::atoi(argv[++i]);
+    else if (a == "--screenshot" && i + 1 < argc) o.screenshot = argv[++i];
+    else if (a == "--screenshot-after" && i + 1 < argc) o.screenshotAfter = std::atof(argv[++i]);
+    else if (a == "--exit-after" && i + 1 < argc) o.exitAfter = std::atof(argv[++i]);
     else if (a == "-h" || a == "--help") { usage(); return 0; }
     else { std::fprintf(stderr, "unknown option %s\n", a.c_str()); usage(); return 2; }
   }
