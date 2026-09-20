@@ -13,6 +13,12 @@ find_package(CURL REQUIRED)
 find_package(nlohmann_json 3.10 REQUIRED)
 find_package(Threads REQUIRED)
 find_program(GLSLC glslc REQUIRED)
+# libwayland-client: the app requests its own wl_surface frame callbacks (src/frame_gate.*) so a hidden window never
+# stalls the main loop inside the driver's present. Optional — without it the gate is inert.
+find_package(PkgConfig)
+if(PkgConfig_FOUND)
+  pkg_check_modules(WAYLAND_CLIENT IMPORTED_TARGET wayland-client)
+endif()
 
 include(FetchContent)
 FetchContent_Declare(imgui GIT_REPOSITORY https://github.com/ocornut/imgui.git GIT_TAG v1.92.9 GIT_SHALLOW TRUE)
@@ -61,11 +67,15 @@ add_custom_command(OUTPUT ${EMBED_CPP}
 
 add_executable(soundscape-native
   src/main.cpp src/app.cpp src/api.cpp src/audio.cpp src/analysis.cpp src/abc.cpp src/player.cpp
-  src/vk_context.cpp src/renderer.cpp src/ui.cpp ${EMBED_CPP})
+  src/vk_context.cpp src/renderer.cpp src/ui.cpp src/frame_gate.cpp ${EMBED_CPP})
 target_include_directories(soundscape-native PRIVATE src)
 target_link_libraries(soundscape-native PRIVATE imgui ma_impl Vulkan::Vulkan glfw CURL::libcurl nlohmann_json::nlohmann_json Threads::Threads)
 target_compile_options(soundscape-native PRIVATE -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers)
 target_compile_definitions(soundscape-native PRIVATE GLFW_INCLUDE_NONE GLFW_INCLUDE_VULKAN)
+if(WAYLAND_CLIENT_FOUND)
+  target_link_libraries(soundscape-native PRIVATE PkgConfig::WAYLAND_CLIENT)
+  target_compile_definitions(soundscape-native PRIVATE SOUNDSCAPE_WAYLAND_CLIENT=1)
+endif()
 
 install(TARGETS soundscape-native RUNTIME DESTINATION bin)
 install(FILES packaging/soundscape.desktop DESTINATION share/applications)

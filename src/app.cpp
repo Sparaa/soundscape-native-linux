@@ -312,22 +312,42 @@ int App::run() {
   if (opt.fullscreen) toggleFullscreen();
   // ---- loop
   double last = glfwGetTime(), fpsT = last, t0 = last; int frames = 0; long totalFrames = 0; bool shotRequested = false, shotDone = false;
-  const bool profile = std::getenv("SOUNDSCAPE_PROFILE") != nullptr; double prof[6] = {}; const char* profName[6] = { "events+tick", "analyse", "acquire", "imgui", "record", "submit+present" };
+  const bool profile = std::getenv("SOUNDSCAPE_PROFILE") != nullptr; double prof[6] = {}; const char* profName[6] = { "events+tick+wait", "analyse", "acquire", "imgui", "record", "submit+present" };
   auto mark = [&](int k, double& tm) { if (!profile) return; double n = glfwGetTime(); prof[k] += n - tm; tm = n; };
   long punchHigh = 0, punchPeaks = 0, hitPeaks = 0, playFrames = 0; float lastPunch = 0, lastHit = 0;   // profile: does the pulse engage?
   std::vector<float> lvAll, lvPeak;   // profile: band level every frame / at punch peaks (gate calibration)
   if (const char* e = std::getenv("SOUNDSCAPE_PUNCH_LEVEL")) { float a = 0, b = 0; if (std::sscanf(e, "%f,%f", &a, &b) == 2) { punchDet.levelLo = a; punchDet.levelHi = b; } }
   if (const char* e = std::getenv("SOUNDSCAPE_PUNCH_BINS")) { int a = 0, b = 0; if (std::sscanf(e, "%d,%d", &a, &b) == 2) { punchDet.lo = a; punchDet.hi = b; } }
+  // The loop never blocks on the compositor: while the last presented frame is still unconsumed (window hidden — see
+  // frame_gate.hpp) it waits for events at most ~16 ms, runs the player/queue/status work, and skips the render.
+  const bool frameGate = !std::getenv("SOUNDSCAPE_NO_FRAME_GATE");
+  if (frameGate) gate.init(window);
+  bool gateNoticed = false;
   while (!glfwWindowShouldClose(window)) {
     double tm = glfwGetTime();
-    glfwPollEvents();
+    if (gate.pending()) glfwWaitEventsTimeout(0.016); else glfwPollEvents();
     mq.drain();
-    double now = glfwGetTime(); float dt = float(std::min(0.1, now - last)); last = now;
+    double now = glfwGetTime();
     player->tick(now);
     pollStatus(now);
     audio.setVolume(volume);
     if (opt.fullscreenToggleAt > 0 && now - t0 >= opt.fullscreenToggleAt) { opt.fullscreenToggleAt += (fullscreen ? 1e9 : 3); toggleFullscreen(); }
+    if (opt.exitAfter > 0 && now - t0 >= opt.exitAfter && (opt.screenshot.empty() || shotDone)) glfwSetWindowShouldClose(window, 1);
     mark(0, tm);
+    if (gate.pending()) {
+      // A focused window is on screen; if the compositor still owes us a callback after a second, present anyway rather
+      // than freeze the visuals (the driver's own wait then behaves exactly as before this gate existed).
+      bool stuck = gate.pendingFor(now) > 1.0 && glfwGetWindowAttrib(window, GLFW_FOCUSED) == GLFW_TRUE;
+      if (!stuck) {
+        gate.skipped++;
+        if (opt.verbose && !gateNoticed && gate.pendingFor(now) > 1.0) { gateNoticed = true; std::fprintf(stderr, "[soundscape] window hidden: rendering paused, playback continues\n"); }
+        continue;
+      }
+      if (opt.verbose) std::fprintf(stderr, "[soundscape] focused window got no frame callback for %.1f s — presenting anyway\n", gate.pendingFor(now));
+      gate.disarm();
+    }
+    if (gateNoticed && opt.verbose) { gateNoticed = false; std::fprintf(stderr, "[soundscape] window visible again: rendering resumed\n"); }
+    float dt = float(std::min(0.1, now - last)); last = now;
     computeFrame(dt);
     if (profile && song) { playFrames++; if (frame.beat.punch > 0.5f) punchHigh++; if (frame.beat.punch > 0.6f && lastPunch <= 0.6f) { punchPeaks++; lvPeak.push_back(punchDet.level); } lvAll.push_back(punchDet.level); if (frame.beat.hit > 0.9f && lastHit <= 0.9f) hitPeaks++; lastPunch = frame.beat.punch; lastHit = frame.beat.hit; }
     mark(1, tm);
@@ -347,10 +367,10 @@ int App::run() {
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
     vkCmdEndRenderPass(cmd);
     mark(4, tm);
-    vk.endFrame(imageIndex);
+    gate.arm(now);                                   // the frame callback rides on the commit this present makes
+    if (!vk.endFrame(imageIndex)) gate.disarm();
     mark(5, tm);
     if (shotRequested && !shotDone && writeCapture()) shotDone = true;
-    if (opt.exitAfter > 0 && now - t0 >= opt.exitAfter && (opt.screenshot.empty() || shotDone)) glfwSetWindowShouldClose(window, 1);
     frames++; totalFrames++; if (now - fpsT > 1) { fps = float(frames / (now - fpsT)); frames = 0; fpsT = now; }
   }
   vkDeviceWaitIdle(vk.device);
@@ -362,11 +382,11 @@ int App::run() {
     std::fprintf(stderr, "[profile] band level (bins %d..%d) all frames p10/p50/p90 %.2f/%.2f/%.2f · at punch peaks p10/p50/p90 %.2f/%.2f/%.2f · gate %.2f..%.2f\n",
                  punchDet.lo, punchDet.hi, pct(lvAll, .1), pct(lvAll, .5), pct(lvAll, .9), pct(lvPeak, .1), pct(lvPeak, .5), pct(lvPeak, .9), punchDet.levelLo, punchDet.levelHi);
   }
-  if (opt.verbose || profile) std::fprintf(stderr, "[soundscape] %ld frames in %.1f s (%.0f fps avg, %s)\n", totalFrames, glfwGetTime() - t0, totalFrames / std::max(1e-3, glfwGetTime() - t0), opt.vsync ? "fifo" : "mailbox/immediate");
+  if (opt.verbose || profile) std::fprintf(stderr, "[soundscape] %ld frames in %.1f s (%.0f fps avg, %s%s) · frame callbacks %ld · hidden-skipped iterations %ld\n", totalFrames, glfwGetTime() - t0, totalFrames / std::max(1e-3, glfwGetTime() - t0), opt.vsync ? "fifo" : "mailbox/immediate", gate.active() ? ", frame gate" : "", gate.fired, gate.skipped);
   if (station && player && player->currentSong()) { try { api.radioStop(station->id); } catch (...) {} }
   player.reset(); audio.shutdown();
   ImGui_ImplVulkan_Shutdown(); ImGui_ImplGlfw_Shutdown(); ImGui::DestroyContext();
-  renderer.destroy(); vk.destroy();
+  renderer.destroy(); gate.destroy(); vk.destroy();
   glfwDestroyWindow(window); glfwTerminate();
   return 0;
 }

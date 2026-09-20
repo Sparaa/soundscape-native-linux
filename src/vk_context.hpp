@@ -34,7 +34,8 @@ public:
   void recreateSwapchain();
   /** Waits for the frame slot, acquires an image and begins its command buffer. false = swapchain was rebuilt, skip. */
   bool beginFrame(uint32_t& imageIndex, VkCommandBuffer& cmd);
-  void endFrame(uint32_t imageIndex);
+  /** Submit + present. Returns true when the present was queued (the surface got a commit); false = swapchain out of date. */
+  bool endFrame(uint32_t imageIndex);
   void beginSwapchainPass(VkCommandBuffer cmd, uint32_t imageIndex);
   /** Ask endFrame() to copy this frame's swapchain image into a host buffer; takeCapture() collects it (BGRA8/RGBA8). */
   void requestCapture() { captureRequested_ = true; }

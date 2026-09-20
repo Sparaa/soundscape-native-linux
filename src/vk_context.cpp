@@ -169,7 +169,7 @@ void VkContext::beginSwapchainPass(VkCommandBuffer cmd, uint32_t imageIndex) {
   vkCmdBeginRenderPass(cmd, &rp, VK_SUBPASS_CONTENTS_INLINE);
 }
 
-void VkContext::endFrame(uint32_t imageIndex) {
+bool VkContext::endFrame(uint32_t imageIndex) {
   VkCommandBuffer cmd = cmds[frame];
   if (captureRequested_) {                                    // PRESENT_SRC → copy → PRESENT_SRC, inside this frame's submission
     captureRequested_ = false;
@@ -194,6 +194,7 @@ void VkContext::endFrame(uint32_t imageIndex) {
   if (r == VK_ERROR_OUT_OF_DATE_KHR || r == VK_SUBOPTIMAL_KHR) wantRecreate_ = true;
   else vkCheck(r, "vkQueuePresentKHR");
   frame = (frame + 1) % FRAMES;
+  return r == VK_SUCCESS || r == VK_SUBOPTIMAL_KHR;
 }
 
 bool VkContext::takeCapture(std::vector<uint8_t>& pixels, uint32_t& w, uint32_t& h, bool& bgr) {

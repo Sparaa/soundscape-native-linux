@@ -10,6 +10,7 @@
 #include "analysis.hpp"
 #include "api.hpp"
 #include "async.hpp"
+#include "frame_gate.hpp"
 #include "audio.hpp"
 #include "player.hpp"
 #include "renderer.hpp"
@@ -26,7 +27,7 @@ struct App {
 
   // ---- core
   Options opt; MainQueue mq; Api api; AudioEngine audio; std::unique_ptr<RadioPlayer> player; Analyser analyser{ 2048, 0.8f };
-  GLFWwindow* window = nullptr; VkContext vk; Renderer renderer; ImFont *font = nullptr, *fontBold = nullptr, *fontBig = nullptr; float uiScale = 1.f, uiBaseScale = 1.f; bool uiScaleDirty = true;
+  GLFWwindow* window = nullptr; VkContext vk; FrameGate gate; Renderer renderer; ImFont *font = nullptr, *fontBold = nullptr, *fontBig = nullptr; float uiScale = 1.f, uiBaseScale = 1.f; bool uiScaleDirty = true;
 
   // ---- radio state (main thread)
   std::vector<Station> stations; std::optional<Station> station; RadioStatus status; std::optional<Song> song; RadioPlayer::Pos pos{ 0, 0 };

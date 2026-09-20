@@ -19,6 +19,7 @@ The web UI is not needed while it runs. It is the "hella cool end state" the pla
 | `renderer.*` | the `pulse` scene: static triangle soup + 3 instanced quad draws into an RGBA16F offscreen image, then the CRT post pass into the swapchain | `web/lib/scenes.ts` `pulse` + `globals.css` `.crt-*` |
 | `ui.cpp` | Dear ImGui side panel (stations / radio / seeds / playlist / profile) + the red telemetry HUD | `RadioPanel.tsx`, `Visualizer.tsx` |
 | `app.*` | state, actions, api polling (status every 2 s, stations every 5 s, health every 15 s), main loop | `RadioPanel.tsx` |
+| `frame_gate.*` | Wayland frame-callback gate: the loop skips rendering, but keeps ticking, while the compositor is not consuming frames (hidden window) | — |
 | `async.hpp` | detached worker threads + a main-thread queue | — |
 
 Threading: everything touches state on the main thread. Blocking api calls run on detached threads via
@@ -56,6 +57,27 @@ Xwayland surface is presentable only from the GPU Xwayland is bound to (here the
 monitor), so every frame crossed GPUs. GLFW 3.4 built in-tree with the Wayland backend, plus a
 `GLFW_PLATFORM_WAYLAND` init hint when `WAYLAND_DISPLAY` is set, presents from the display GPU: 60 fps at vsync.
 `SOUNDSCAPE_X11=1` forces the old path; `--gpu N` picks a device by index.
+
+## A hidden window must not stop the music
+
+Reported 2026-09-20: with the app in the background, playback stopped at the end of the track. Measured with the
+window fully covered by another fullscreen window: the main thread's CPU time froze and it sat in `poll` on the
+Wayland socket; the profiler put the wait in submit+present, not acquire. A Wayland compositor stops answering frame
+callbacks for a window it does not draw (covered, minimised, another workspace), and the NVIDIA FIFO swapchain then
+blocks `vkQueuePresentKHR` until the window is visible again. The audio thread kept playing the current deck, but the
+player tick, the main queue and the api calls all live on the main loop, so nothing fetched the next song.
+
+Fix (`frame_gate.*`): before every present the app requests its own `wl_surface_frame` callback on the GLFW surface,
+so it rides on the commit the present makes. While that callback is unanswered the loop does
+`glfwWaitEventsTimeout(16 ms)`, drains the queue, ticks the player, polls status and skips the render (no acquire, no
+submit, no present — the GPU idles). The callback arrives with the next compositor repaint of the surface: when the
+window is visible that is every vblank (60 fps unchanged, 899 callbacks for 900 frames), and when it is hidden it is
+the moment it becomes visible again. Safety net: a *focused* window that still has no callback after 1 s presents
+anyway, so a compositor that never answers degrades to the old behaviour instead of a frozen picture.
+`SOUNDSCAPE_NO_FRAME_GATE=1` turns the gate off; `--verbose` logs the hidden/visible transitions and the exit
+summary counts callbacks and skipped iterations. Off Wayland (X11, or built without libwayland-client) the gate is
+inert. Verified: covered for 9 s the main thread still polled ~124×/s (strace) and a song boundary inside the covered
+window advanced to the next track.
 
 ## Window handling
 
