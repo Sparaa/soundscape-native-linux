@@ -154,6 +154,11 @@ void radioPane(App& a) {
     if (toggle(sg.saved ? "SAVED" : "SAVE", sg.saved)) a.toggleSaved();
     ImGui::SameLine(); if (toggle("↑ MORE LIKE THIS", sg.vote > 0)) a.vote(1);
     ImGui::SameLine(); if (toggle("↓ LESS", sg.vote < 0)) a.vote(-1);
+    ImGui::SameLine(); if (toggle("↧ FLAC", false)) a.downloadSong(sg, "flac");
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("download the lossless original (with tags) to your Music/Soundscape folder — D");
+    ImGui::SameLine(); if (toggle("↧ MP3", false)) a.downloadSong(sg, "mp3");
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("download a 320 kbit/s MP3 to your Music/Soundscape folder");
+    if (!a.dlStatus.empty()) dim(a.dlStatus.c_str());
     if (!sg.lyrics.empty()) {
       ImGui::BeginChild("lyrics", ImVec2(0, 190 * s), ImGuiChildFlags_None);
       ImGui::PushStyleColor(ImGuiCol_Text, PH2); ImGui::TextWrapped("%s", sg.lyrics.c_str()); ImGui::PopStyleColor();
@@ -218,10 +223,16 @@ void stationPane(App& a) {
       bool cur = a.mode == "playlist" && int(i) == a.plIndex;
       std::string label = (cur ? "▶ " : "  ") + ellipsis(sg.title.empty() ? sg.id : sg.title, 34);
       if (ImGui::Selectable(label.c_str(), cur)) { a.setMode("playlist"); a.playSaved(int(i)); }
+      if (ImGui::BeginPopupContextItem("song-menu")) {  // right-click a row
+        if (ImGui::MenuItem("↧ Download FLAC (lossless)")) a.downloadSong(sg, "flac");
+        if (ImGui::MenuItem("↧ Download MP3 (320k)")) a.downloadSong(sg, "mp3");
+        ImGui::EndPopup();
+      }
       ImGui::SameLine(ImGui::GetContentRegionAvail().x + ImGui::GetCursorPosX() - 40 * s); dimUnwrapped(fmtTime(sg.seconds));
       ImGui::PopID();
     }
-    if (!a.playlist.items.empty()) dimUnwrapped("total " + fmtTime(a.playlist.seconds));
+    if (!a.playlist.items.empty()) dimUnwrapped("total " + fmtTime(a.playlist.seconds) + " · right-click a song to download it");
+    if (!a.dlStatus.empty() && !a.song) dim(a.dlStatus.c_str());
   } else {
     if (!st.style.empty()) { ImGui::PushFont(a.fontBold); ImGui::TextUnformatted("SOUND"); ImGui::PopFont(); dim(st.style.c_str()); }
     auto tags = [&](const char* n, const std::vector<std::string>& v) { if (v.empty()) return; std::string t = n; t += ": "; for (size_t i = 0; i < v.size(); i++) t += (i ? ", " : "") + v[i]; dim(t.c_str()); };
@@ -248,7 +259,7 @@ void settingsPane(App& a) {
   ImGui::NewLine();
   ImGui::SameLine(); ImGui::AlignTextToFramePadding(); dimUnwrapped("api"); ImGui::SameLine(); ImGui::SetNextItemWidth(-1);
   if (ImGui::InputText("##api", a.apiEdit, sizeof a.apiEdit, ImGuiInputTextFlags_EnterReturnsTrue)) { a.api.setBase(a.apiEdit); a.healthKnown = false; a.backToStations(); a.refreshHealth(); }
-  dimUnwrapped("Space play/stop · N skip · S save · F fullscreen · Tab panel · H hud · C crt");
+  dimUnwrapped("Space play/stop · N skip · S save · D download · F fullscreen · Tab panel · H hud · C crt");
   ImGui::EndChild();
 }
 } // namespace

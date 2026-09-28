@@ -1,5 +1,9 @@
 #include "api.hpp"
+#include "download.hpp"
 #include <curl/curl.h>
+#include <strings.h>
+#include <cstdio>
+#include <filesystem>
 #include <stdexcept>
 
 using json = nlohmann::json;
@@ -146,5 +150,55 @@ std::vector<Song> Api::librarySongs(bool saved, bool liked) {
   std::vector<Song> v; for (const auto& s : req("GET", "/library" + (q.empty() ? "" : "?" + q))) v.push_back(parseSong(s)); return v;
 }
 std::vector<uint8_t> Api::songAudio(const std::string& id) { return raw("/songs/" + id + "/audio", 180); }
+
+namespace {
+struct DlState {
+  std::filesystem::path dir, path, part; std::string fallback, disposition, error; std::FILE* f = nullptr; long code = 0; CURL* c = nullptr;
+};
+size_t dlHeader(char* p, size_t s, size_t n, void* ud) {
+  auto* st = static_cast<DlState*>(ud);
+  std::string h(p, s * n);
+  if (h.size() > 20 && strncasecmp(h.c_str(), "content-disposition:", 20) == 0) st->disposition = h.substr(20);
+  return s * n;
+}
+size_t dlWrite(char* p, size_t s, size_t n, void* ud) {
+  auto* st = static_cast<DlState*>(ud);
+  if (!st->f) {
+    curl_easy_getinfo(st->c, CURLINFO_RESPONSE_CODE, &st->code);
+    if (st->code >= 400) { st->error.append(p, std::min<size_t>(s * n, 300)); return s * n; }  // keep the error body, write nothing
+    std::string name = dispositionFilename(st->disposition);
+    st->path = uniquePath(st->dir, name.empty() ? st->fallback : name);
+    st->part = st->path; st->part += ".part";
+    st->f = std::fopen(st->part.c_str(), "wb");
+    if (!st->f) return 0;  // abort the transfer
+  }
+  return std::fwrite(p, 1, s * n, st->f) == s * n ? s * n : 0;
+}
+} // namespace
+
+std::string Api::downloadSong(const std::string& id, const std::string& fmt, const std::string& dir) {
+  DlState st; st.dir = dir; st.fallback = id + "." + fmt;
+  std::filesystem::create_directories(st.dir);
+  CURL* c = curl_easy_init();
+  if (!c) throw std::runtime_error("curl init failed");
+  st.c = c;
+  std::string url = base_ + "/songs/" + id + "/download?fmt=" + fmt; char err[CURL_ERROR_SIZE] = {0};
+  curl_easy_setopt(c, CURLOPT_URL, url.c_str());
+  curl_easy_setopt(c, CURLOPT_HEADERFUNCTION, dlHeader); curl_easy_setopt(c, CURLOPT_HEADERDATA, &st);
+  curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, dlWrite); curl_easy_setopt(c, CURLOPT_WRITEDATA, &st);
+  curl_easy_setopt(c, CURLOPT_CONNECTTIMEOUT, 3L); curl_easy_setopt(c, CURLOPT_TIMEOUT, 600L); curl_easy_setopt(c, CURLOPT_ERRORBUFFER, err);
+  curl_easy_setopt(c, CURLOPT_NOSIGNAL, 1L);
+  CURLcode rc = curl_easy_perform(c);
+  curl_easy_getinfo(c, CURLINFO_RESPONSE_CODE, &st.code); curl_easy_cleanup(c);
+  bool closed = !st.f || std::fclose(st.f) == 0;
+  std::error_code ec;
+  if (rc != CURLE_OK || st.code >= 400 || !closed || st.part.empty()) {
+    if (!st.part.empty()) std::filesystem::remove(st.part, ec);
+    if (st.code >= 400) throw std::runtime_error("download failed: " + std::to_string(st.code) + " " + st.error);
+    throw std::runtime_error(std::string("download failed: ") + (err[0] ? err : rc != CURLE_OK ? curl_easy_strerror(rc) : "could not write the file"));
+  }
+  std::filesystem::rename(st.part, st.path);
+  return st.path.string();
+}
 
 } // namespace ss

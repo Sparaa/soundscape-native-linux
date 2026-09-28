@@ -3,6 +3,10 @@
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
+#include <fstream>
+#include <sstream>
+#include "download.hpp"
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_vulkan.h>
 
@@ -108,6 +112,30 @@ void App::toggleSaved() {
   std::string id = song->id; bool v = !song->saved;
   async_call<Song>(mq, [this, id, v] { return api.patchSong(id, { { "saved", v } }); }, [this](Song u) { applySongFlags(u); }, [this](std::string e) { err = e; });
 }
+// Where downloads go: $SOUNDSCAPE_DOWNLOAD_DIR, else the XDG music folder (~/.config/user-dirs.dirs) / Soundscape.
+static std::string downloadDir() {
+  if (const char* o = std::getenv("SOUNDSCAPE_DOWNLOAD_DIR"); o && *o) return o;
+  std::string home = std::getenv("HOME") ? std::getenv("HOME") : ".";
+  const char* xdg = std::getenv("XDG_CONFIG_HOME");
+  std::ifstream f(std::string(xdg && *xdg ? xdg : (home + "/.config").c_str()) + "/user-dirs.dirs");
+  std::stringstream text; text << f.rdbuf();
+  return (musicDir(home, text.str()) / "Soundscape").string();
+}
+
+void App::downloadSong(const Song& sg, const std::string& fmt) {
+  std::string id = sg.id, title = sg.title.empty() ? sg.id : sg.title, dir = downloadDir();
+  dlActive++;
+  dlStatus = "downloading " + title + " (" + fmt + ")…";
+  async_call<std::string>(mq, [this, id, fmt, dir] { return api.downloadSong(id, fmt, dir); },
+    [this](std::string path) {
+      dlActive--;
+      std::string home = std::getenv("HOME") ? std::getenv("HOME") : "";
+      if (!home.empty() && path.rfind(home, 0) == 0) path = "~" + path.substr(home.size());
+      dlStatus = "saved " + path;
+    },
+    [this](std::string e) { dlActive--; dlStatus.clear(); err = e; });
+}
+
 void App::vote(int v) {
   if (!song) return;
   std::string id = song->id; int nv = song->vote == v ? 0 : v;
@@ -224,6 +252,7 @@ void App::handleKeys() {
   if (ImGui::IsKeyPressed(ImGuiKey_Space, false)) { if (player && player->currentSong() && !paused) stopRadio(); else play(); }
   if (ImGui::IsKeyPressed(ImGuiKey_N, false)) skip();
   if (ImGui::IsKeyPressed(ImGuiKey_S, false)) toggleSaved();
+  if (ImGui::IsKeyPressed(ImGuiKey_D, false) && song) downloadSong(*song, "flac");
   if (ImGui::IsKeyPressed(ImGuiKey_F, false) || ImGui::IsKeyPressed(ImGuiKey_F11, false)) toggleFullscreen();
   if (ImGui::IsKeyPressed(ImGuiKey_Tab, false)) panelVisible = !panelVisible;
   if (ImGui::IsKeyPressed(ImGuiKey_H, false)) showHud = !showHud;

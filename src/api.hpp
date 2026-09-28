@@ -55,6 +55,9 @@ public:
   std::vector<Song> librarySongs(bool saved = false, bool liked = false);
   /** Whole FLAC of a song in memory (the decoder reads from it). */
   std::vector<uint8_t> songAudio(const std::string& id);
+  // Download a song as fmt "flac" | "mp3" into `dir` (created if missing), streamed straight to disk under the
+  // server's "<station> - <title>.<ext>" name (never overwriting). Returns the saved path; throws on failure.
+  std::string downloadSong(const std::string& id, const std::string& fmt, const std::string& dir);
 
   static Song parseSong(const nlohmann::json& j);
   static RadioStatus parseStatus(const nlohmann::json& j);

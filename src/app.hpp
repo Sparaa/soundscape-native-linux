@@ -33,6 +33,7 @@ struct App {
   std::vector<Station> stations; std::optional<Station> station; RadioStatus status; std::optional<Song> song; RadioPlayer::Pos pos{ 0, 0 };
   bool paused = false; std::string mode = "radio"; Playlist playlist; int plIndex = -1;
   std::string err, notice; Health health; bool healthKnown = false; bool busyStation = false;
+  std::string dlStatus; int dlActive = 0;  // song downloads (downloadSong): last result line, transfers in flight
   char newStationName[128] = ""; char seedUrl[512] = ""; char apiEdit[256] = ""; float covers = 0.5f; bool coversDragging = false; int tab = 1;
   bool panelVisible = true, fullscreen = false, crt = true; float renderScale = 2.f, glow = 0.12f, volume = 1.f, fps = 0; bool showHud = true;
   int savedWinX = 100, savedWinY = 100, savedWinW = 1920, savedWinH = 1080; bool savedMaximized = false;
@@ -54,6 +55,7 @@ struct App {
   void stopRadio();
   void skip();
   void toggleSaved();
+  void downloadSong(const Song& s, const std::string& fmt);  // "flac" | "mp3" → <music dir>/Soundscape/
   void vote(int v);
   void playCued(const Song& s);
   void commitCovers();

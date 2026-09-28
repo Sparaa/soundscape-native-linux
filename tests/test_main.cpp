@@ -6,6 +6,9 @@
 #include <vector>
 #include "abc.hpp"
 #include "analysis.hpp"
+#include "download.hpp"
+#include <filesystem>
+#include <fstream>
 
 static int fails = 0, checks = 0;
 #define CHECK(cond) do { checks++; if (!(cond)) { fails++; std::printf("FAIL %s:%d  %s\n", __FILE__, __LINE__, #cond); } } while (0)
@@ -109,7 +112,29 @@ static void test_punch() {
   VisualFrame f = makeFrame(1, Bands{}, BeatClock(120), {}, Palette{}, 10, {}, 0.7f); NEAR(f.beat.punch, 0.7, 1e-6);
 }
 
+static void test_download() {
+  // the api's header for "Dark Wave - Track 9 Under.flac" (RFC 5987 form wins over the plain one)
+  CHECK(dispositionFilename(" attachment; filename*=utf-8''Dark%20Wave%20-%20Track%209%20Under.flac\r\n") == "Dark Wave - Track 9 Under.flac");
+  CHECK(dispositionFilename("attachment; filename=\"plain.mp3\"; filename*=UTF-8''N%C3%A9on.mp3") == "N\xc3\xa9on.mp3");
+  CHECK(dispositionFilename("attachment; filename=\"plain.mp3\"") == "plain.mp3");
+  CHECK(dispositionFilename("attachment; filename*=utf-8''..%2F..%2Fetc%2Fpasswd") == "-..-etc-passwd");  // no escaping the folder
+  CHECK(dispositionFilename("inline").empty());
+  CHECK(musicDir("/home/u", "# comment\nXDG_MUSIC_DIR=\"$HOME/Musik\"\n") == std::filesystem::path("/home/u/Musik"));
+  CHECK(musicDir("/home/u", "XDG_MUSIC_DIR=\"/data/music\"") == std::filesystem::path("/data/music"));
+  CHECK(musicDir("/home/u", "XDG_MUSIC_DIR=\"$HOME/\"") == std::filesystem::path("/home/u/Music"));  // disabled → default
+  CHECK(musicDir("/home/u", "") == std::filesystem::path("/home/u/Music"));
+  auto dir = std::filesystem::temp_directory_path() / "ss-dl-test";
+  std::filesystem::remove_all(dir); std::filesystem::create_directories(dir);
+  CHECK(uniquePath(dir, "a.flac") == dir / "a.flac");
+  std::ofstream(dir / "a.flac") << "x";
+  CHECK(uniquePath(dir, "a.flac") == dir / "a (2).flac");
+  std::ofstream(dir / "a (2).flac") << "x";
+  CHECK(uniquePath(dir, "a.flac") == dir / "a (3).flac");
+  std::filesystem::remove_all(dir);
+}
+
 int main() {
+  test_download();
   test_punch();
   test_abc(); test_bands(); test_analyser(); test_clock();
   std::printf("%d checks, %d failed\n", checks, fails);

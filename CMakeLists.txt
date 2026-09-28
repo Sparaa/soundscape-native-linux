@@ -66,7 +66,7 @@ add_custom_command(OUTPUT ${EMBED_CPP}
   DEPENDS ${SPV_FILES} ${CMAKE_SOURCE_DIR}/cmake/embed.cmake COMMENT "embedding SPIR-V" VERBATIM)
 
 add_executable(soundscape-native
-  src/main.cpp src/app.cpp src/api.cpp src/audio.cpp src/analysis.cpp src/abc.cpp src/player.cpp
+  src/main.cpp src/app.cpp src/api.cpp src/download.cpp src/audio.cpp src/analysis.cpp src/abc.cpp src/player.cpp
   src/vk_context.cpp src/renderer.cpp src/ui.cpp src/frame_gate.cpp ${EMBED_CPP})
 target_include_directories(soundscape-native PRIVATE src)
 target_link_libraries(soundscape-native PRIVATE imgui ma_impl Vulkan::Vulkan glfw CURL::libcurl nlohmann_json::nlohmann_json Threads::Threads)
@@ -83,7 +83,7 @@ install(FILES packaging/soundscape.png DESTINATION share/icons/hicolor/256x256/a
 
 # ---- tests (pure modules: analysis, abc, player timing) --------------------------------------------------------------
 enable_testing()
-add_executable(soundscape-tests tests/test_main.cpp src/analysis.cpp src/abc.cpp)
+add_executable(soundscape-tests tests/test_main.cpp src/analysis.cpp src/abc.cpp src/download.cpp)
 target_include_directories(soundscape-tests PRIVATE src)
 target_link_libraries(soundscape-tests PRIVATE Threads::Threads)
 add_test(NAME unit COMMAND soundscape-tests)
